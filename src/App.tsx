@@ -1,8 +1,10 @@
-import { AnimatePresence, MotionConfig } from 'motion/react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
 import { Timeline } from '@/components/Timeline'
+import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
 import garmentsData from '@/data/garments.json'
 import { groupByPlace, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
 import { PANEL_SPACE } from '@/lib/utils'
@@ -11,6 +13,8 @@ import { PANEL_SPACE } from '@/lib/utils'
 const MapView = lazy(() => import('@/components/MapView'))
 
 const garments = garmentsData as Garment[]
+type View = 'map' | 'grid'
+
 const isDesktop = () => window.innerWidth >= 768
 
 export default function App() {
@@ -22,6 +26,7 @@ export default function App() {
 }
 
 function Explorer() {
+  const [view, setView] = useState<View>('map')
   const [period, setPeriod] = useState<Period>([MIN_YEAR, MAX_YEAR])
   const [placeName, setPlaceName] = useState<string | null>(null)
   const [garmentId, setGarmentId] = useState<string | null>(null)
@@ -60,10 +65,22 @@ function Explorer() {
           <h1 className="font-heading text-[22px] leading-none font-medium tracking-[-0.02em] text-foreground">FashMap</h1>
           <p className="hidden text-[13px] text-muted-foreground lg:block">Cultural dress across place and time</p>
         </div>
+        <div className="pointer-events-auto">
+          <ContinuousTabs
+            label="View"
+            tabs={[
+              { id: 'map', label: 'Map' },
+              { id: 'grid', label: 'Grid' },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        </div>
       </header>
 
       <main className={garment ? 'fm-panel-open' : undefined}>
-        <div className="absolute inset-0">
+        {/* The map stays mounted under the grid, so switching back keeps zoom and position. */}
+        <div className="absolute inset-0" inert={view === 'grid'}>
           <Suspense fallback={<div className="absolute inset-0 bg-[#F4F4F5]" />}>
             <MapView
               places={places}
@@ -71,7 +88,7 @@ function Explorer() {
               selectedPlace={placeName}
               onSelectPlace={setPlaceName}
               onClosePlace={() => setPlaceName(null)}
-              selectedGarment={garment}
+              selectedGarment={view === 'map' ? garment : null}
               onSelectGarment={setGarmentId}
               mapRef={mapRef}
             />
@@ -79,7 +96,17 @@ function Explorer() {
           <Timeline period={period} onChange={setPeriod} garments={garments} total={garments.length} panelOpen={!!garment} />
         </div>
 
-        <AnimatePresence>{garment && <ObjectPanel key="panel" garment={garment} onClose={closeGarment} onShowPlace={showPlace} />}</AnimatePresence>
+        <AnimatePresence>
+          {view === 'grid' && (
+            <motion.div key="grid" className="absolute inset-0 z-[1100]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <GridView garments={garments} selectedId={garmentId ?? undefined} onSelect={setGarmentId} panelOpen={!!garment} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {garment && <ObjectPanel key="panel" garment={garment} onClose={closeGarment} onShowPlace={view === 'map' ? showPlace : undefined} />}
+        </AnimatePresence>
       </main>
     </div>
   )
