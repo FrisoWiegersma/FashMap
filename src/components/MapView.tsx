@@ -4,10 +4,10 @@ import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import NumberFlow from '@number-flow/react'
 import { Maximize, Minus, Plus, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'react-map-gl/maplibre'
 import { GarmentImage } from '@/components/GarmentImage'
-import { countryName, dotRadius, inPeriod, type Garment, type Period, type Place } from '@/lib/data'
+import { clusterByPixels, countryName, dotRadius, inPeriod, mercator, type Garment, type Period, type Place } from '@/lib/data'
 import { cn, PANEL_SPACE } from '@/lib/utils'
 
 // This module is loaded lazily (MapLibre is ~1 MB), so the header and timeline paint first.
@@ -55,6 +55,11 @@ const boundsOf = (ps: { lng: number; lat: number }[]): Bounds => {
   return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)]
 }
 const fitPadding = () => ({ top: HEADER_SPACE + 60, left: 60, right: 60, bottom: TIMELINE_SPACE })
+// Scales with the screen: on a phone, desktop padding is wider than the map and MapLibre refuses to fit.
+const groupPadding = () => {
+  const x = Math.min(140, window.innerWidth * 0.18)
+  return { top: Math.min(180, window.innerHeight * 0.2), bottom: Math.min(TIMELINE_SPACE + 40, window.innerHeight * 0.35), left: x, right: x }
+}
 
 type Props = {
   places: Place[]
@@ -129,28 +134,83 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
   )
 }
 
-/** One dot per place. The first paint pops them in one by one. */
+/** Dots, grouped when they would overlap. Groups are recomputed per half zoom level, so they split while you zoom. */
 function Dots({ places, selectedPlace, onSelectPlace }: Pick<Props, 'places' | 'selectedPlace' | 'onSelectPlace'>) {
-  return places.map((place, i) => (
-    <Dot key={place.name} place={place} intro={0.2 + Math.min(i, 14) * 0.045} selected={place.name === selectedPlace} onActivate={() => onSelectPlace(place.name)} />
-  ))
+  const { current: map } = useMap()
+  const [zoomStep, setZoomStep] = useState(() => Math.floor((map?.getZoom() ?? 2) * 2) / 2)
+
+  useEffect(() => {
+    if (!map) return
+    const onZoom = () => setZoomStep(Math.floor(map.getZoom() * 2) / 2)
+    map.on('zoom', onZoom)
+    return () => {
+      map.off('zoom', onZoom)
+    }
+  }, [map])
+
+  const groups = useMemo(
+    () => clusterByPixels(places.map((place) => ({ place, count: place.garments.length, ...mercator(place.lng, place.lat, zoomStep) }))).map((g) => g.map((m) => m.place)),
+    [places, zoomStep],
+  )
+
+  // Where each place was drawn in the previous grouping, so a dot that splits off a group flies out from the old group dot.
+  // Kept in state and updated during render (React's "previous props" pattern), so new dots see it on their first render.
+  const [prev, setPrev] = useState({ groups, anchors: new globalThis.Map<string, [number, number]>(), first: true })
+  if (prev.groups !== groups) setPrev({ groups, anchors: anchorsOf(prev.groups), first: false })
+
+  return groups.map((members, i) => {
+    const anchor = members[0]
+    const from = prev.anchors.get(anchor.name)
+    return (
+      <Dot
+        key={members.map((p) => p.name).join('|')}
+        members={members}
+        intro={prev.first ? 0.2 + Math.min(i, 14) * 0.045 : null}
+        splitFrom={from && (from[0] !== anchor.lng || from[1] !== anchor.lat) ? from : undefined}
+        selected={members.some((p) => p.name === selectedPlace)}
+        onActivate={() => {
+          if (members.length === 1) return onSelectPlace(anchor.name)
+          map?.fitBounds(boundsOf(members), { padding: groupPadding(), maxZoom: 11, duration: 1100, easing: ease, essential: true })
+        }}
+      />
+    )
+  })
 }
 
-type DotProps = { place: Place; intro: number; selected: boolean; onActivate: () => void }
+const anchorsOf = (groups: Place[][]) => new globalThis.Map(groups.flatMap((g) => g.map((p) => [p.name, [g[0].lng, g[0].lat] as [number, number]] as const)))
 
-function Dot({ place, intro, selected, onActivate }: DotProps) {
-  const total = place.garments.length
-  const live = place.inPeriod
+type DotProps = { members: Place[]; intro: number | null; splitFrom?: [number, number]; selected: boolean; onActivate: () => void }
+
+function Dot({ members, intro, splitFrom, selected, onActivate }: DotProps) {
+  const { current: map } = useMap()
+  const anchor = members[0]
+  const total = members.reduce((n, p) => n + p.garments.length, 0)
+  const live = members.reduce((n, p) => n + p.inPeriod, 0)
   const size = dotRadius(live) * 2
+  const isGroup = members.length > 1
+  const names = isGroup
+    ? members.length > 3
+      ? `${members.slice(0, 2).map((p) => p.name).join(', ')} and ${members.length - 2} more places`
+      : `${members.slice(0, -1).map((p) => p.name).join(', ')} and ${members.at(-1)!.name}`
+    : anchor.name
   const countText = live === total ? `${total} ${total === 1 ? 'garment' : 'garments'}` : `${live} of ${total} garments in this period`
   // Near the top edge the tooltip opens below the dot, so the header doesn't cover it.
   const [below, setBelow] = useState(false)
   const measure = (e: { currentTarget: Element }) => setBelow(e.currentTarget.getBoundingClientRect().top < HEADER_SPACE + 90)
 
+  // Entrance: the first paint pops the dots in one by one; a dot split off a group springs out from the group's old spot.
+  const [initial] = useState(() => {
+    if (intro !== null) return { x: 0, y: 0, scale: 0, opacity: 0 }
+    if (!splitFrom || !map) return { x: 0, y: 0, scale: 0.6, opacity: 0 }
+    const a = map.project([anchor.lng, anchor.lat])
+    const b = map.project(splitFrom)
+    return { x: b.x - a.x, y: b.y - a.y, scale: 0.7, opacity: 0.5 }
+  })
+
   return (
     <Marker
-      longitude={place.lng}
-      latitude={place.lat}
+      longitude={anchor.lng}
+      latitude={anchor.lat}
       anchor="center"
       onClick={(e) => {
         e.originalEvent.stopPropagation()
@@ -159,14 +219,14 @@ function Dot({ place, intro, selected, onActivate }: DotProps) {
     >
       <motion.div
         className="relative"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 24, delay: intro }}
+        initial={initial}
+        animate={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24, delay: intro ?? 0 }}
       >
         <motion.button
           type="button"
-          aria-label={`${place.name}, ${countText}`}
-          aria-pressed={selected}
+          aria-label={`${names}, ${countText}${isGroup ? '. Zoom in to see each place.' : ''}`}
+          aria-pressed={isGroup ? undefined : selected}
           onPointerEnter={measure}
           onFocus={measure}
           initial={{ width: size, height: size }}
@@ -177,9 +237,12 @@ function Dot({ place, intro, selected, onActivate }: DotProps) {
             live ? 'bg-primary text-white shadow-[0_0_0_2px_#fff,0_4px_14px_-2px_rgb(45_91_255/0.5)]' : 'border-[1.5px] border-zinc-400 bg-white/85',
           )}
         >
+          {/* A group gets a thin halo, so "several places" reads by shape as well as by the count. */}
+          {isGroup && <span className={cn('pointer-events-none absolute -inset-[5px] rounded-full border', live ? 'border-primary/40' : 'border-zinc-400/60')} />}
           <span
             className={cn(
-              'pointer-events-none absolute -inset-[5px] rounded-full border-2 border-foreground transition-[opacity,scale] duration-200 ease-out',
+              'pointer-events-none absolute rounded-full border-2 border-foreground transition-[opacity,scale] duration-200 ease-out',
+              isGroup ? '-inset-[9px]' : '-inset-[5px]',
               selected ? 'scale-100 opacity-100' : 'scale-75 opacity-0',
             )}
           />
@@ -196,8 +259,8 @@ function Dot({ place, intro, selected, onActivate }: DotProps) {
             below ? 'top-full mt-3 -translate-y-1' : 'bottom-full mb-3 translate-y-1',
           )}
         >
-          <span className="block font-heading text-[15px] leading-tight text-white">{place.name}</span>
-          <span className="block text-xs text-white/65">{countText}</span>
+          <span className="block font-heading text-[15px] leading-tight text-white">{names}</span>
+          <span className="block text-xs text-white/65">{isGroup ? `${countText}. Click to zoom in.` : countText}</span>
         </span>
       </motion.div>
     </Marker>

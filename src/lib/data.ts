@@ -75,6 +75,34 @@ export function groupByPlace(garments: Garment[], period: Period): Place[] {
 /** Dot radius in px. Area grows with the count. */
 export const dotRadius = (count: number) => (count === 0 ? 6 : Math.min(34, 5 + 4 * Math.sqrt(count)))
 
+/** Web Mercator world pixels at a zoom level (512 px tiles, as MapLibre uses). Pure, so clustering doesn't need the map. */
+export function mercator(lng: number, lat: number, zoom: number) {
+  const size = 512 * 2 ** zoom
+  const sin = Math.sin((lat * Math.PI) / 180)
+  return { x: ((lng + 180) / 360) * size, y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size }
+}
+
+/**
+ * Greedy clustering in screen pixels: a place joins the first group whose dot it would overlap.
+ * Input is sorted by size, so the biggest place anchors each group.
+ */
+// ponytail: O(n²) scan, fine below ~1000 places; switch to supercluster if the data grows past that.
+export function clusterByPixels<T extends { x: number; y: number; count: number }>(items: T[], gap = 6): T[][] {
+  const groups: { x: number; y: number; count: number; members: T[] }[] = []
+  for (const item of [...items].sort((a, b) => b.count - a.count)) {
+    const hit = groups.find(
+      (g) => Math.hypot(g.x - item.x, g.y - item.y) < dotRadius(g.count) + dotRadius(item.count) + gap,
+    )
+    if (hit) {
+      hit.members.push(item)
+      hit.count += item.count
+    } else {
+      groups.push({ x: item.x, y: item.y, count: item.count, members: [item] })
+    }
+  }
+  return groups.map((g) => g.members)
+}
+
 const regions = new Intl.DisplayNames(['en'], { type: 'region' })
 export const countryName = (code: string) => regions.of(code) ?? code
 
