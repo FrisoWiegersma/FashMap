@@ -129,6 +129,24 @@
     .fm-panel-open .fm-map-controls { right: 470px; }
 }
 
+/* Micrio 360° viewer: hide its points (their stories don't show in FashMap yet), toolbar and buttons.
+   Zoom works with scroll and pinch. */
+micr-io {
+    --micrio-font-family: inherit;
+    background: transparent;
+}
+micr-io .micrio-markers,
+micr-io menu.micrio-toolbar,
+micr-io aside.micrio-controls {
+    display: none !important;
+}
+
+/* Indeterminate loading bar (the 360° viewer reports no progress). */
+@keyframes fm-slide {
+    from { left: -33%; }
+    to { left: 100%; }
+}
+
 /* ---------- FashMap: placeholder swatch (a fine twill weave) ---------- */
 
 .fm-weave {

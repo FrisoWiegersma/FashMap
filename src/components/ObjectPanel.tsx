@@ -1,17 +1,18 @@
 import { ExternalLink, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
-import { GarmentImage } from '@/components/GarmentImage'
+import { Media } from '@/components/Media'
 import { garmentFields, type Garment } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 type Props = {
   garment: Garment
+  show3d: boolean
   onClose: () => void
   onShowPlace?: (g: Garment) => void
 }
 
-export function ObjectPanel({ garment, onClose, onShowPlace }: Props) {
+export function ObjectPanel({ garment, show3d, onClose, onShowPlace }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   // Move focus into the panel on open, and give it back to whatever opened it on close.
@@ -33,7 +34,7 @@ export function ObjectPanel({ garment, onClose, onShowPlace }: Props) {
       className="absolute top-4 right-4 bottom-4 z-[1300] flex w-[430px] max-w-[calc(100%-2rem)] origin-right flex-col overflow-hidden rounded-[22px] bg-card shadow-float ring-1 ring-black/5"
     >
       <div className="relative h-[48%] min-h-64 shrink-0 bg-[radial-gradient(120%_90%_at_50%_25%,#FFFFFF_0%,#EFEFF1_100%)]">
-        <GarmentImage garment={garment} size="panel" />
+        <Media key={garment.id} garment={garment} show3d={show3d} />
         <button
           type="button"
           onClick={onClose}

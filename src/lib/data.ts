@@ -117,6 +117,9 @@ export const countryName = (code: string) => regions.of(code) ?? code
 /** Resolve a data path (relative to public/) or pass an absolute URL through. */
 export const assetUrl = (path: string) => (/^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path}`)
 
+/** Whether the garment has something to turn: a Modemuze 360° spin. */
+export const has3d = (g: Garment) => !!g.micrio
+
 export const yearRange = (g: Garment) => (g.start === g.end ? `${g.start}` : `${g.start}–${g.end}`)
 
 /** The detail rows of a garment, in the order the panel and the compare view show them. Unknown values are null. */

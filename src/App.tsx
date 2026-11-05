@@ -18,6 +18,8 @@ const MapView = lazy(() => import('@/components/MapView'))
 const garments = garmentsData as Garment[]
 type View = 'map' | 'grid'
 
+// 3D shows in both views, except in the eval grid condition (?c=grid): that one stays a photo + text baseline.
+const show3d = lockedView !== 'grid'
 const isDesktop = () => window.innerWidth >= 768
 
 export default function App() {
@@ -162,7 +164,7 @@ function Explorer() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {garment && <ObjectPanel key="panel" garment={garment} onClose={closeGarment} onShowPlace={view === 'map' ? showPlace : undefined} />}
+          {garment && <ObjectPanel key="panel" garment={garment} show3d={show3d} onClose={closeGarment} onShowPlace={view === 'map' ? showPlace : undefined} />}
         </AnimatePresence>
       </main>
     </div>
