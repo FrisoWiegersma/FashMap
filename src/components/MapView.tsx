@@ -2,11 +2,12 @@ import * as maplibregl from 'maplibre-gl'
 import type { StyleSpecification } from 'maplibre-gl'
 import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import NumberFlow from '@number-flow/react'
-import { Maximize, Minus, Plus } from 'lucide-react'
+import { Maximize, Minus, Plus, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useEffect, useState, type RefObject } from 'react'
-import Map, { AttributionControl, Marker, type MapRef } from 'react-map-gl/maplibre'
-import { dotRadius, type Place } from '@/lib/data'
+import { useEffect, useRef, useState, type RefObject } from 'react'
+import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'react-map-gl/maplibre'
+import { GarmentImage } from '@/components/GarmentImage'
+import { countryName, dotRadius, inPeriod, type Period, type Place } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 // This module is loaded lazily (MapLibre is ~1 MB), so the header and timeline paint first.
@@ -56,10 +57,14 @@ const fitPadding = () => ({ top: HEADER_SPACE + 60, left: 60, right: 60, bottom:
 
 type Props = {
   places: Place[]
+  period: Period
+  selectedPlace: string | null
+  onSelectPlace: (name: string) => void
+  onClosePlace: () => void
   mapRef: RefObject<MapRef | null>
 }
 
-export default function MapView({ places, mapRef }: Props) {
+export default function MapView({ places, period, selectedPlace, onSelectPlace, onClosePlace, mapRef }: Props) {
   const [style, setStyle] = useState<StyleSpecification>()
   useEffect(() => {
     // ponytail: no fallback if the style can't load; the map stays grey. Add an OSM raster style as fallback if that bites.
@@ -68,8 +73,9 @@ export default function MapView({ places, mapRef }: Props) {
       .then((s: StyleJson) => setStyle(recolour(s)))
   }, [])
 
-  // Fit to all places once, at load.
+  // Fit to all places once, at load. The period never moves the camera.
   const [allBounds] = useState(() => boundsOf(places))
+  const place = places.find((p) => p.name === selectedPlace)
 
   return (
     <div className="absolute inset-0 bg-[#F4F4F5]">
@@ -90,9 +96,28 @@ export default function MapView({ places, mapRef }: Props) {
             e.target.touchZoomRotate.disableRotation()
             e.target.keyboard.disableRotation()
           }}
+          onClick={onClosePlace}
         >
           <AttributionControl position="bottom-right" compact={false} />
-          <Dots places={places} />
+          <Dots places={places} selectedPlace={selectedPlace} onSelectPlace={onSelectPlace} />
+          {place && (
+            <Popup
+              key={place.name}
+              longitude={place.lng}
+              latitude={place.lat}
+              anchor="bottom"
+              offset={dotRadius(place.inPeriod) + 8}
+              closeButton={false}
+              closeOnClick={false}
+              closeOnMove={false}
+              focusAfterOpen={false}
+              maxWidth="none"
+              className="fm-popup"
+            >
+              <PlaceList place={place} period={period} onClose={onClosePlace} />
+              <PopupInView />
+            </Popup>
+          )}
         </Map>
       )}
       <ZoomControls mapRef={mapRef} bounds={allBounds} />
@@ -101,13 +126,15 @@ export default function MapView({ places, mapRef }: Props) {
 }
 
 /** One dot per place. The first paint pops them in one by one. */
-function Dots({ places }: Pick<Props, 'places'>) {
-  return places.map((place, i) => <Dot key={place.name} place={place} intro={0.2 + Math.min(i, 14) * 0.045} />)
+function Dots({ places, selectedPlace, onSelectPlace }: Pick<Props, 'places' | 'selectedPlace' | 'onSelectPlace'>) {
+  return places.map((place, i) => (
+    <Dot key={place.name} place={place} intro={0.2 + Math.min(i, 14) * 0.045} selected={place.name === selectedPlace} onActivate={() => onSelectPlace(place.name)} />
+  ))
 }
 
-type DotProps = { place: Place; intro: number }
+type DotProps = { place: Place; intro: number; selected: boolean; onActivate: () => void }
 
-function Dot({ place, intro }: DotProps) {
+function Dot({ place, intro, selected, onActivate }: DotProps) {
   const total = place.garments.length
   const live = place.inPeriod
   const size = dotRadius(live) * 2
@@ -117,7 +144,15 @@ function Dot({ place, intro }: DotProps) {
   const measure = (e: { currentTarget: Element }) => setBelow(e.currentTarget.getBoundingClientRect().top < HEADER_SPACE + 90)
 
   return (
-    <Marker longitude={place.lng} latitude={place.lat} anchor="center">
+    <Marker
+      longitude={place.lng}
+      latitude={place.lat}
+      anchor="center"
+      onClick={(e) => {
+        e.originalEvent.stopPropagation()
+        onActivate()
+      }}
+    >
       <motion.div
         className="relative"
         initial={{ scale: 0, opacity: 0 }}
@@ -127,6 +162,7 @@ function Dot({ place, intro }: DotProps) {
         <motion.button
           type="button"
           aria-label={`${place.name}, ${countText}`}
+          aria-pressed={selected}
           onPointerEnter={measure}
           onFocus={measure}
           initial={{ width: size, height: size }}
@@ -137,6 +173,12 @@ function Dot({ place, intro }: DotProps) {
             live ? 'bg-primary text-white shadow-[0_0_0_2px_#fff,0_4px_14px_-2px_rgb(45_91_255/0.5)]' : 'border-[1.5px] border-zinc-400 bg-white/85',
           )}
         >
+          <span
+            className={cn(
+              'pointer-events-none absolute -inset-[5px] rounded-full border-2 border-foreground transition-[opacity,scale] duration-200 ease-out',
+              selected ? 'scale-100 opacity-100' : 'scale-75 opacity-0',
+            )}
+          />
           {live > 1 && (
             <span className="font-heading text-[13px] leading-none font-medium tabular-nums">
               <NumberFlow value={live} />
@@ -156,6 +198,27 @@ function Dot({ place, intro }: DotProps) {
       </motion.div>
     </Marker>
   )
+}
+
+/** Pan so a freshly opened place list fits on screen, clear of the header. */
+function PopupInView() {
+  const { current: map } = useMap()
+  const ref = useRef<HTMLSpanElement>(null)
+  // Only on open: following every resize would fight the user's own panning. One frame later, so the popup is in the DOM.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const popup = ref.current?.closest('.maplibregl-popup')
+      if (!map || !popup) return
+      const r = popup.getBoundingClientRect()
+      const c = map.getContainer().getBoundingClientRect()
+      const right = c.right - 16
+      const dx = r.left < c.left + 16 ? r.left - c.left - 16 : r.right > right ? r.right - right : 0
+      const dy = r.top < c.top + HEADER_SPACE ? r.top - c.top - HEADER_SPACE : 0
+      if (dx || dy) map.panBy([dx, dy], { duration: 500, easing: ease })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [map]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <span ref={ref} hidden />
 }
 
 function ZoomControls({ mapRef, bounds }: { mapRef: RefObject<MapRef | null>; bounds: Bounds }) {
@@ -178,6 +241,54 @@ function ZoomControls({ mapRef, bounds }: { mapRef: RefObject<MapRef | null>; bo
       >
         <Maximize className="size-4" />
       </button>
+    </div>
+  )
+}
+
+type PlaceListProps = { place: Place; period: Period; onClose: () => void }
+
+function PlaceList({ place, period, onClose }: PlaceListProps) {
+  const n = place.garments.length
+  return (
+    <div className="w-[300px]">
+      <div className="relative border-b border-border px-5 pt-4 pr-12 pb-3">
+        <h2 className="font-heading text-[22px] leading-tight text-foreground">{place.name}</h2>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          {countryName(place.country)}, {n} {n === 1 ? 'garment' : 'garments'}
+          {place.inPeriod < n && `, ${place.inPeriod} in this period`}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={`Close ${place.name}`}
+          className="absolute top-3 right-3 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <ul className="max-h-[336px] overflow-y-auto overscroll-contain p-2">
+        {place.garments.map((g, i) => {
+          const live = inPeriod(g, period)
+          return (
+            <motion.li key={g.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 + Math.min(i, 8) * 0.035, duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}>
+              <div className="flex items-center gap-3 rounded-xl p-2">
+                <span className={cn('h-12 w-10 shrink-0 overflow-hidden rounded-md ring-1 ring-black/5 transition-opacity', !live && 'opacity-45')}>
+                  <span className="block size-full transition-transform duration-500 ease-out group-hover:scale-110">
+                    <GarmentImage garment={g} size="thumb" />
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn('block truncate text-sm font-medium text-foreground', !live && 'text-foreground/50')}>{g.title}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {g.dateLabel}
+                    {!live && ', outside period'}
+                  </span>
+                </span>
+              </div>
+            </motion.li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

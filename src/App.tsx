@@ -1,5 +1,5 @@
 import { MotionConfig } from 'motion/react'
-import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import { Timeline } from '@/components/Timeline'
 import garmentsData from '@/data/garments.json'
@@ -20,10 +20,20 @@ export default function App() {
 
 function Explorer() {
   const [period, setPeriod] = useState<Period>([MIN_YEAR, MAX_YEAR])
+  const [placeName, setPlaceName] = useState<string | null>(null)
   const mapRef = useRef<MapRef>(null)
 
   // Everything below is derived from the state above, so every view updates in the same render.
   const places = useMemo(() => groupByPlace(garments, period), [period])
+
+  // Esc closes the place list.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPlaceName(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className="relative h-svh overflow-hidden bg-background">
@@ -38,7 +48,14 @@ function Explorer() {
       <main>
         <div className="absolute inset-0">
           <Suspense fallback={<div className="absolute inset-0 bg-[#F4F4F5]" />}>
-            <MapView places={places} mapRef={mapRef} />
+            <MapView
+              places={places}
+              period={period}
+              selectedPlace={placeName}
+              onSelectPlace={setPlaceName}
+              onClosePlace={() => setPlaceName(null)}
+              mapRef={mapRef}
+            />
           </Suspense>
           <Timeline period={period} onChange={setPeriod} garments={garments} total={garments.length} />
         </div>

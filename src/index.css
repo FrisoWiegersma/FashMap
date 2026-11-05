@@ -83,6 +83,33 @@
     z-index: 2;
 }
 
+/* The place list: a floating card that rises out of its dot. */
+.fm-popup {
+    z-index: 3;
+}
+.fm-popup .maplibregl-popup-content {
+    padding: 0;
+    border-radius: 18px;
+    color: var(--foreground);
+    box-shadow: var(--shadow-float), 0 0 0 1px rgb(0 0 0 / 0.05);
+    transform-origin: 50% 100%;
+    animation: fm-pop 0.32s cubic-bezier(0.2, 0.9, 0.25, 1.05) both;
+}
+.fm-popup .maplibregl-popup-tip {
+    border-top-color: #fff;
+    animation: fm-fade 0.2s ease-out both;
+}
+@keyframes fm-pop {
+    from { opacity: 0; transform: translateY(8px) scale(0.96); }
+}
+@keyframes fm-fade {
+    from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fm-popup .maplibregl-popup-content,
+    .fm-popup .maplibregl-popup-tip { animation: none; }
+}
+
 .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib {
     margin: 0;
     padding: 2px 8px;
@@ -93,3 +120,12 @@
     font-size: 10px;
 }
 .maplibregl-ctrl-attrib a { color: inherit; }
+
+/* ---------- FashMap: placeholder swatch (a fine twill weave) ---------- */
+
+.fm-weave {
+    background-color: #F1F1F3;
+    background-image:
+        repeating-linear-gradient(135deg, rgb(0 0 0 / 0.035) 0 2px, transparent 2px 6px),
+        repeating-linear-gradient(90deg, rgb(0 0 0 / 0.02) 0 1px, transparent 1px 3px);
+}
