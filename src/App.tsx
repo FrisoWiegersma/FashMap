@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { AdminPage } from '@/components/AdminPage'
 import { Filters } from '@/components/Filters'
 import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
@@ -8,6 +9,7 @@ import { Timeline } from '@/components/Timeline'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
 import garmentsData from '@/data/garments.json'
 import { applyFilters, groupByPlace, MAX_YEAR, MIN_YEAR, NO_FILTERS, type Filters as FilterState, type Garment, type Period } from '@/lib/data'
+import { isAdmin, lockedView, log } from '@/lib/log'
 import { PANEL_SPACE } from '@/lib/utils'
 
 // MapLibre is ~1 MB, so the map loads as its own chunk while the header and timeline paint.
@@ -19,15 +21,11 @@ type View = 'map' | 'grid'
 const isDesktop = () => window.innerWidth >= 768
 
 export default function App() {
-  return (
-    <MotionConfig reducedMotion="user">
-      <Explorer />
-    </MotionConfig>
-  )
+  return <MotionConfig reducedMotion="user">{isAdmin ? <AdminPage /> : <Explorer />}</MotionConfig>
 }
 
 function Explorer() {
-  const [view, setView] = useState<View>('map')
+  const [view, setView] = useState<View>(lockedView ?? 'map')
   const [period, setPeriod] = useState<Period>([MIN_YEAR, MAX_YEAR])
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [placeName, setPlaceName] = useState<string | null>(null)
@@ -39,7 +37,36 @@ function Explorer() {
   const places = useMemo(() => groupByPlace(filtered, period), [filtered, period])
   const garment = garments.find((g) => g.id === garmentId) ?? null
 
-  const closeGarment = () => setGarmentId(null)
+  // Logging (roadmap F10). Event names are fixed once a study starts; add new ones, never rename.
+  useEffect(() => log('session_start', { view, width: window.innerWidth, height: window.innerHeight }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const firstPeriod = useRef(true)
+  useEffect(() => {
+    if (firstPeriod.current) return void (firstPeriod.current = false)
+    // The slider fires on every step; log where the drag settles.
+    const t = setTimeout(() => log('period_change', { from: period[0], to: period[1] }), 500)
+    return () => clearTimeout(t)
+  }, [period])
+
+  const changeView = (v: View) => {
+    setView(v)
+    log('view_change', { to: v })
+  }
+  const openPlace = (name: string) => {
+    if (name !== placeName) log('place_open', { place: name })
+    setPlaceName(name)
+  }
+  const openGarment = (id: string) => {
+    if (id !== garmentId) log('garment_open', { garment: id, from: view === 'map' ? 'list' : 'grid' })
+    setGarmentId(id)
+  }
+  const closeGarment = () => {
+    if (garmentId) log('garment_close', { garment: garmentId })
+    setGarmentId(null)
+  }
+  const changeFilters = (f: FilterState) => {
+    setFilters(f)
+    log('filter_change', f)
+  }
 
   // Esc closes the innermost thing first: the panel, then the place list.
   useEffect(() => {
@@ -53,7 +80,7 @@ function Explorer() {
   })
 
   const showPlace = (g: Garment) => {
-    setPlaceName(g.place)
+    openPlace(g.place)
     // On a phone the panel covers the map, so step back to the map.
     if (!isDesktop()) closeGarment()
     const map = mapRef.current
@@ -68,19 +95,22 @@ function Explorer() {
           <h1 className="font-heading text-[22px] leading-none font-medium tracking-[-0.02em] text-foreground">FashMap</h1>
           <p className="hidden text-[13px] text-muted-foreground lg:block">Cultural dress across place and time</p>
         </div>
+        {/* Eval mode (?c=map|grid) locks the view, so the toggle goes. */}
+        {!lockedView && (
+          <div className="pointer-events-auto">
+            <ContinuousTabs
+              label="View"
+              tabs={[
+                { id: 'map', label: 'Map' },
+                { id: 'grid', label: 'Grid' },
+              ]}
+              value={view}
+              onChange={changeView}
+            />
+          </div>
+        )}
         <div className="pointer-events-auto">
-          <ContinuousTabs
-            label="View"
-            tabs={[
-              { id: 'map', label: 'Map' },
-              { id: 'grid', label: 'Grid' },
-            ]}
-            value={view}
-            onChange={setView}
-          />
-        </div>
-        <div className="pointer-events-auto">
-          <Filters garments={garments} value={filters} onChange={setFilters} shown={filtered.length} />
+          <Filters garments={garments} value={filters} onChange={changeFilters} shown={filtered.length} />
         </div>
       </header>
 
@@ -92,10 +122,10 @@ function Explorer() {
               places={places}
               period={period}
               selectedPlace={placeName}
-              onSelectPlace={setPlaceName}
+              onSelectPlace={openPlace}
               onClosePlace={() => setPlaceName(null)}
               selectedGarment={view === 'map' ? garment : null}
-              onSelectGarment={setGarmentId}
+              onSelectGarment={openGarment}
               mapRef={mapRef}
             />
           </Suspense>
@@ -112,7 +142,7 @@ function Explorer() {
                 <p className="mt-1 text-sm text-muted-foreground">Remove a filter to put the dots back.</p>
                 <button
                   type="button"
-                  onClick={() => setFilters(NO_FILTERS)}
+                  onClick={() => changeFilters(NO_FILTERS)}
                   className="mt-4 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-white transition-[scale,background-color] hover:bg-zinc-800 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   Clear filters
@@ -126,7 +156,7 @@ function Explorer() {
         <AnimatePresence>
           {view === 'grid' && (
             <motion.div key="grid" className="absolute inset-0 z-[1100]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-              <GridView garments={filtered} selectedId={garmentId ?? undefined} onSelect={setGarmentId} panelOpen={!!garment} onClearFilters={() => setFilters(NO_FILTERS)} />
+              <GridView garments={filtered} selectedId={garmentId ?? undefined} onSelect={openGarment} panelOpen={!!garment} onClearFilters={() => changeFilters(NO_FILTERS)} />
             </motion.div>
           )}
         </AnimatePresence>
