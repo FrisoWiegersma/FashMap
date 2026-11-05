@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 // MapLibre looks for its worker next to its own module, which breaks once Vite bundles it. Point it at the file.
 maplibregl.setWorkerUrl(maplibreWorker)
 
+const TIMELINE_SPACE = 230
 const HEADER_SPACE = 80
 const ease = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -51,7 +52,7 @@ const boundsOf = (ps: { lng: number; lat: number }[]): Bounds => {
   const lats = ps.map((p) => p.lat)
   return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)]
 }
-const fitPadding = () => ({ top: HEADER_SPACE + 60, left: 60, right: 60, bottom: 60 })
+const fitPadding = () => ({ top: HEADER_SPACE + 60, left: 60, right: 60, bottom: TIMELINE_SPACE })
 
 type Props = {
   places: Place[]

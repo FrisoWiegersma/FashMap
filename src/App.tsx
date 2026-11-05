@@ -1,14 +1,14 @@
 import { MotionConfig } from 'motion/react'
-import { lazy, Suspense, useRef } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { Timeline } from '@/components/Timeline'
 import garmentsData from '@/data/garments.json'
-import { groupByPlace, MAX_YEAR, MIN_YEAR, type Garment } from '@/lib/data'
+import { groupByPlace, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
 
-// MapLibre is ~1 MB, so the map loads as its own chunk while the header paints.
+// MapLibre is ~1 MB, so the map loads as its own chunk while the header and timeline paint.
 const MapView = lazy(() => import('@/components/MapView'))
 
 const garments = garmentsData as Garment[]
-const places = groupByPlace(garments, [MIN_YEAR, MAX_YEAR])
 
 export default function App() {
   return (
@@ -19,7 +19,11 @@ export default function App() {
 }
 
 function Explorer() {
+  const [period, setPeriod] = useState<Period>([MIN_YEAR, MAX_YEAR])
   const mapRef = useRef<MapRef>(null)
+
+  // Everything below is derived from the state above, so every view updates in the same render.
+  const places = useMemo(() => groupByPlace(garments, period), [period])
 
   return (
     <div className="relative h-svh overflow-hidden bg-background">
@@ -36,6 +40,7 @@ function Explorer() {
           <Suspense fallback={<div className="absolute inset-0 bg-[#F4F4F5]" />}>
             <MapView places={places} mapRef={mapRef} />
           </Suspense>
+          <Timeline period={period} onChange={setPeriod} garments={garments} total={garments.length} />
         </div>
       </main>
     </div>
