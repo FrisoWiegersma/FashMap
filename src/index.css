@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/newsreader";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -71,3 +72,24 @@
     @apply font-sans antialiased;
     }
 }
+/* ---------- FashMap: map ---------- */
+
+.maplibregl-map {
+    font: inherit;
+}
+/* Dots are HTML markers. The hovered or focused one rises above its neighbours, so its tooltip isn't covered. */
+.maplibregl-marker:hover,
+.maplibregl-marker:focus-within {
+    z-index: 2;
+}
+
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib {
+    margin: 0;
+    padding: 2px 8px;
+    border-radius: 8px 0 0 0;
+    background: rgb(255 255 255 / 0.7);
+    backdrop-filter: blur(6px);
+    color: var(--muted-foreground);
+    font-size: 10px;
+}
+.maplibregl-ctrl-attrib a { color: inherit; }
