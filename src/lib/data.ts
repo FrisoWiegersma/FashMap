@@ -117,8 +117,8 @@ export const countryName = (code: string) => regions.of(code) ?? code
 /** Resolve a data path (relative to public/) or pass an absolute URL through. */
 export const assetUrl = (path: string) => (/^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path}`)
 
-/** Whether the garment has something to turn: a Modemuze 360° spin. */
-export const has3d = (g: Garment) => !!g.micrio
+/** Whether the garment has something to turn: a Modemuze 360° spin or its own 3D model. */
+export const has3d = (g: Garment) => !!(g.micrio || g.model)
 
 export const yearRange = (g: Garment) => (g.start === g.end ? `${g.start}` : `${g.start}–${g.end}`)
 

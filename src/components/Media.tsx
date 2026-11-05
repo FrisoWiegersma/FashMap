@@ -1,20 +1,23 @@
-import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { GarmentImage } from '@/components/GarmentImage'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
-import { has3d, type Garment } from '@/lib/data'
+import { assetUrl, has3d, type Garment } from '@/lib/data'
 import { log } from '@/lib/log'
 
 declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
+      'model-viewer': DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & { src?: string; alt?: string; poster?: string; exposure?: string }
       'micr-io': DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
     }
   }
 }
 
+const coarse = () => window.matchMedia('(pointer: coarse)').matches
+
 /**
- * The media area of the docked panel: the 360° view or the photo, with a switch when both exist.
+ * The media area of the docked panel: the 3D view or the photo, with a switch when both exist.
  * Fills its parent, which sets the size. Key it per garment so it starts on 3D each time.
  */
 export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }) {
@@ -36,7 +39,7 @@ export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }
           size="sm"
           className="absolute top-3 left-3 z-10"
           tabs={[
-            { id: '3d', label: '360°' },
+            { id: '3d', label: garment.micrio ? '360°' : '3D' },
             { id: 'photo', label: 'Photo' },
           ]}
           value={mode}
@@ -50,9 +53,10 @@ export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }
   )
 }
 
-/** The garment's 360° spin (Modemuze objects on Micrio). Fills a positioned parent. */
+/** The garment's 360° spin (Modemuze objects on Micrio) or its 3D model. Fills a positioned parent. */
 export function Live({ garment }: { garment: Garment }) {
-  return garment.micrio ? <SpinView id={garment.micrio} garment={garment} /> : null
+  if (garment.micrio) return <SpinView id={garment.micrio} garment={garment} />
+  return garment.model ? <ModelView src={garment.model} garment={garment} /> : null
 }
 
 function Loading({ label, progress }: { label: string; progress?: number }) {
@@ -121,6 +125,63 @@ function SpinView({ id, garment }: { id: string; garment: Garment }) {
       <micr-io ref={ref} id={id} data-minimap="false" data-logo="false" style={{ display: 'block', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
       <AnimatePresence>{state === 'loading' && <Loading label="Loading 360° view" />}</AnimatePresence>
       <AnimatePresence>{state === 'ready' && !touched && <Hint>Drag to turn</Hint>}</AnimatePresence>
+    </div>
+  )
+}
+
+/** 3D view. model-viewer (and three.js) is imported the first time a model is opened, so the map stays light. */
+function ModelView({ src, garment }: { src: string; garment: Garment }) {
+  const ref = useRef<HTMLElement>(null)
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [progress, setProgress] = useState(0)
+  const [touched, setTouched] = useState(false)
+  const logged = useRef(false)
+  const reduced = useReducedMotion()
+
+  useEffect(() => {
+    import('@google/model-viewer').catch(() => setState('error'))
+    const el = ref.current
+    if (!el) return
+    const onLoad = () => setState('ready')
+    const onError = () => setState('error')
+    const onProgress = (e: Event) => setProgress((e as CustomEvent<{ totalProgress: number }>).detail.totalProgress)
+    const onCamera = (e: Event) => {
+      if ((e as CustomEvent<{ source: string }>).detail.source !== 'user-interaction') return
+      setTouched(true)
+      if (!logged.current) log('model_interact', { garment: garment.id })
+      logged.current = true
+    }
+    el.addEventListener('load', onLoad)
+    el.addEventListener('error', onError)
+    el.addEventListener('progress', onProgress)
+    el.addEventListener('camera-change', onCamera)
+    return () => {
+      el.removeEventListener('load', onLoad)
+      el.removeEventListener('error', onError)
+      el.removeEventListener('progress', onProgress)
+      el.removeEventListener('camera-change', onCamera)
+    }
+  }, [garment.id])
+
+  if (state === 'error') return <Fallback garment={garment} what="3D model" />
+
+  return (
+    <div className="relative size-full">
+      <model-viewer
+        ref={ref}
+        src={assetUrl(src)}
+        alt={`3D model of ${garment.title}`}
+        camera-controls
+        touch-action="pan-y"
+        interaction-prompt="none"
+        {...(reduced ? {} : { 'auto-rotate': '', 'auto-rotate-delay': '1200', 'rotation-per-second': '14deg' })}
+        shadow-intensity="0.7"
+        shadow-softness="1"
+        exposure="1.05"
+        style={{ width: '100%', height: '100%', '--poster-color': 'transparent', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' } as CSSProperties}
+      />
+      <AnimatePresence>{state === 'loading' && <Loading label="Loading 3D model" progress={progress} />}</AnimatePresence>
+      <AnimatePresence>{state === 'ready' && !touched && <Hint>{coarse() ? 'Drag to turn, pinch to zoom' : 'Drag to turn, scroll to zoom'}</Hint>}</AnimatePresence>
     </div>
   )
 }
