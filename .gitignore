@@ -31,3 +31,6 @@ CLAUDE.md
 
 # Course documents
 *.pdf
+
+# Modemuze importer cache: holds the museum's Dutch texts
+modemuze-raw.json
