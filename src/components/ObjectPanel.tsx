@@ -1,4 +1,4 @@
-import { ExternalLink, X } from 'lucide-react'
+import { ExternalLink, Maximize2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { Media } from '@/components/Media'
@@ -10,9 +10,10 @@ type Props = {
   show3d: boolean
   onClose: () => void
   onShowPlace?: (g: Garment) => void
+  onOpenFull: () => void
 }
 
-export function ObjectPanel({ garment, show3d, onClose, onShowPlace }: Props) {
+export function ObjectPanel({ garment, show3d, onClose, onShowPlace, onOpenFull }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   // Move focus into the panel on open, and give it back to whatever opened it on close.
@@ -55,6 +56,16 @@ export function ObjectPanel({ garment, show3d, onClose, onShowPlace }: Props) {
         <h2 id="garment-title" ref={headingRef} tabIndex={-1} className="font-heading text-[28px] leading-[1.12] tracking-[-0.01em] text-foreground outline-none">
           {garment.title}
         </h2>
+
+        <motion.button
+          type="button"
+          onClick={() => onOpenFull()}
+          whileTap={{ scale: 0.96 }}
+          className="mt-4 inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Maximize2 className="size-3.5" />
+          Open full page
+        </motion.button>
 
         <Details garment={garment} onShowPlace={onShowPlace} className="mt-5" />
 

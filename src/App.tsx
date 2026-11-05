@@ -1,7 +1,8 @@
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import { AdminPage } from '@/components/AdminPage'
+import { CompareView } from '@/components/CompareView'
 import { Filters } from '@/components/Filters'
 import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
@@ -32,6 +33,8 @@ function Explorer() {
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [placeName, setPlaceName] = useState<string | null>(null)
   const [garmentId, setGarmentId] = useState<string | null>(null)
+  // Full-screen product page of the open garment.
+  const [full, setFull] = useState(false)
   const mapRef = useRef<MapRef>(null)
 
   // Everything below is derived from the state above, so every view updates in the same render.
@@ -65,6 +68,14 @@ function Explorer() {
     if (garmentId) log('garment_close', { garment: garmentId })
     setGarmentId(null)
   }
+  const openFull = () => {
+    log('full_open', { garment: garmentId })
+    setFull(true)
+  }
+  const closeFull = useCallback(() => {
+    log('full_close')
+    setFull(false)
+  }, [])
   const changeFilters = (f: FilterState) => {
     setFilters(f)
     log('filter_change', f)
@@ -91,6 +102,7 @@ function Explorer() {
 
   return (
     <div className="relative h-svh overflow-hidden bg-background">
+      <div className="contents" inert={full}>
       {/* Floating chrome over a full-bleed map. The right side stays free for the object panel. */}
       <header className="pointer-events-none absolute top-4 left-4 z-[1200] flex items-center gap-2">
         <div className="pointer-events-auto flex h-12 items-baseline gap-3 rounded-full bg-white/85 px-5 pt-[11px] shadow-float ring-1 ring-black/5 backdrop-blur-md max-sm:px-4">
@@ -164,9 +176,23 @@ function Explorer() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {garment && <ObjectPanel key="panel" garment={garment} show3d={show3d} onClose={closeGarment} onShowPlace={view === 'map' ? showPlace : undefined} />}
+          {garment && (
+            <ObjectPanel
+              key="panel"
+              garment={garment}
+              show3d={show3d}
+              onClose={closeGarment}
+              onShowPlace={view === 'map' ? showPlace : undefined}
+              onOpenFull={openFull}
+            />
+          )}
         </AnimatePresence>
       </main>
+      </div>
+
+      <AnimatePresence>
+        {full && garment && <CompareView key="full" garment={garment} show3d={show3d} onClose={closeFull} />}
+      </AnimatePresence>
     </div>
   )
 }
