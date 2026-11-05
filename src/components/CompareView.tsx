@@ -1,4 +1,4 @@
-import { ChevronDown, X } from 'lucide-react'
+import { ChevronDown, Maximize2, Minimize2, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { GarmentImage } from '@/components/GarmentImage'
@@ -27,6 +27,12 @@ export function CompareView({ garment, show3d, initialStory = null, onClose }: P
   const [story, setStory] = useState<string | null>(initialStory)
   const [tab, setTab] = useState<'object' | 'stories'>(initialStory ? 'stories' : 'object')
   const active = stories.find((s) => s.id === story)
+  // One pane can fill the screen: the spin or the photos.
+  const [big, setBig] = useState<'live' | 'photo' | null>(null)
+  const bigRef = useRef(big)
+  useEffect(() => {
+    bigRef.current = big
+  })
 
   // Photos: the museum photo, then the images that come with the stories.
   const photos = [
@@ -47,11 +53,12 @@ export function CompareView({ garment, show3d, initialStory = null, onClose }: P
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
     headingRef.current?.focus({ preventScroll: true })
-    // Capture phase, so Esc closes this view before the panel behind it reacts.
+    // Capture phase, so Esc closes this view before the panel behind it reacts. A full-screen pane closes first.
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.stopPropagation()
-      onClose()
+      if (bigRef.current) setBig(null)
+      else onClose()
     }
     window.addEventListener('keydown', onKey, true)
     return () => {
@@ -73,12 +80,12 @@ export function CompareView({ garment, show3d, initialStory = null, onClose }: P
     >
       <div className={cn('grid flex-1 gap-4 p-4 lg:min-h-0 lg:p-5', live ? 'lg:grid-cols-[1.1fr_1fr_400px]' : 'lg:grid-cols-[1fr_420px]')}>
         {live && (
-          <Pane label={garment.micrio ? '360° view' : '3D model'} delay={0}>
+          <Pane label={garment.micrio ? '360° view' : '3D model'} delay={0} big={big === 'live'} onBig={(on) => setBig(on ? 'live' : null)}>
             <Live garment={garment} story={story} onStory={openStory} />
           </Pane>
         )}
 
-        <Pane label={photos.length > 1 ? `Photo ${Math.min(photo, photos.length - 1) + 1} of ${photos.length}` : 'Photo'} delay={live ? 0.06 : 0}>
+        <Pane label={photos.length > 1 ? `Photo ${Math.min(photo, photos.length - 1) + 1} of ${photos.length}` : 'Photo'} delay={live ? 0.06 : 0} big={big === 'photo'} onBig={(on) => setBig(on ? 'photo' : null)}>
           <AnimatePresence initial={false} mode="popLayout">
             <motion.div key={shown?.src ?? 'none'} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
               {shown ? <ZoomPhoto src={shown.src} alt={shown.title} /> : <GarmentImage garment={garment} size="full" />}
@@ -205,18 +212,32 @@ function StoryItem({ story, open, onToggle }: { story: Story; open: boolean; onT
   )
 }
 
-type PaneProps = { label: string; delay: number; children: ReactNode }
+type PaneProps = { label: string; delay: number; big: boolean; onBig: (on: boolean) => void; children: ReactNode }
 
-function Pane({ label, delay, children }: PaneProps) {
+function Pane({ label, delay, big, onBig, children }: PaneProps) {
+  const Icon = big ? Minimize2 : Maximize2
   return (
     <motion.section
+      layout
       aria-label={label}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE, delay }}
-      className="relative h-[72svh] overflow-hidden rounded-[22px] bg-[radial-gradient(120%_90%_at_50%_25%,#FFFFFF_0%,#EFEFF1_100%)] shadow-float ring-1 ring-black/5 lg:h-auto"
+      transition={{ duration: 0.4, ease: EASE, delay, layout: { duration: 0.35, ease: EASE } }}
+      className={cn(
+        'overflow-hidden bg-[radial-gradient(120%_90%_at_50%_25%,#FFFFFF_0%,#EFEFF1_100%)]',
+        big ? 'fixed inset-0 z-20' : 'relative h-[72svh] rounded-[22px] shadow-float ring-1 ring-black/5 lg:h-auto',
+      )}
     >
       {children}
+      <button
+        type="button"
+        onClick={() => onBig(!big)}
+        aria-label={big ? 'Exit full screen' : `Show the ${label.toLowerCase().replace(/ \d+ of \d+$/, 's')} full screen`}
+        title={big ? 'Exit full screen (Esc)' : 'Full screen'}
+        className="absolute top-3 right-3 z-10 grid size-9 place-items-center rounded-full bg-white/90 text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.2)] ring-1 ring-black/5 backdrop-blur transition-[background-color,scale] hover:bg-white active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <Icon className="size-4" />
+      </button>
       <span className="pointer-events-none absolute top-3 left-3 z-10 rounded-full bg-white/90 px-3 py-1 text-[13px] font-medium text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.12)] ring-1 ring-black/5 backdrop-blur">
         {label}
       </span>
