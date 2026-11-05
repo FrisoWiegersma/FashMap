@@ -10,7 +10,7 @@ type Props = {
   show3d: boolean
   onClose: () => void
   onShowPlace?: (g: Garment) => void
-  onOpenFull: () => void
+  onOpenFull: (story?: string | null) => void
 }
 
 export function ObjectPanel({ garment, show3d, onClose, onShowPlace, onOpenFull }: Props) {
@@ -35,7 +35,8 @@ export function ObjectPanel({ garment, show3d, onClose, onShowPlace, onOpenFull 
       className="absolute top-4 right-4 bottom-4 z-[1300] flex w-[430px] max-w-[calc(100%-2rem)] origin-right flex-col overflow-hidden rounded-[22px] bg-card shadow-float ring-1 ring-black/5"
     >
       <div className="relative h-[48%] min-h-64 shrink-0 bg-[radial-gradient(120%_90%_at_50%_25%,#FFFFFF_0%,#EFEFF1_100%)]">
-        <Media key={garment.id} garment={garment} show3d={show3d} />
+        {/* A point tapped on the small spin opens the full page on its story, where there is room to read it. */}
+        <Media key={garment.id} garment={garment} show3d={show3d} onStory={(id) => id && onOpenFull(id)} />
         <button
           type="button"
           onClick={onClose}

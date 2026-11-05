@@ -129,13 +129,18 @@
     .fm-panel-open .fm-map-controls { right: 470px; }
 }
 
-/* Micrio 360° viewer: hide its points (their stories don't show in FashMap yet), toolbar and buttons.
-   Zoom works with scroll and pinch. */
+/* Micrio 360° viewer: keep its points in FashMap's cobalt, hide its own popup, toolbar and buttons.
+   FashMap shows the stories in its own panel, and zoom works with scroll and pinch. */
 micr-io {
+    --micrio-marker-color: var(--primary);
+    --micrio-marker-border-color: #fff;
+    --micrio-marker-border-size: 2px;
+    --micrio-marker-size: 18px;
+    --micrio-marker-highlight: var(--foreground);
     --micrio-font-family: inherit;
     background: transparent;
 }
-micr-io .micrio-markers,
+micr-io .micrio-marker-popup,
 micr-io menu.micrio-toolbar,
 micr-io aside.micrio-controls {
     display: none !important;

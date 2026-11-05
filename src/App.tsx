@@ -33,8 +33,8 @@ function Explorer() {
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [placeName, setPlaceName] = useState<string | null>(null)
   const [garmentId, setGarmentId] = useState<string | null>(null)
-  // Full-screen product page of the open garment.
-  const [full, setFull] = useState(false)
+  // Full-screen product page of the open garment, optionally opened on one of its stories.
+  const [full, setFull] = useState<{ story: string | null } | null>(null)
   const mapRef = useRef<MapRef>(null)
 
   // Everything below is derived from the state above, so every view updates in the same render.
@@ -68,13 +68,13 @@ function Explorer() {
     if (garmentId) log('garment_close', { garment: garmentId })
     setGarmentId(null)
   }
-  const openFull = () => {
-    log('full_open', { garment: garmentId })
-    setFull(true)
+  const openFull = (story: string | null = null) => {
+    log('full_open', { garment: garmentId, story })
+    setFull({ story })
   }
   const closeFull = useCallback(() => {
     log('full_close')
-    setFull(false)
+    setFull(null)
   }, [])
   const changeFilters = (f: FilterState) => {
     setFilters(f)
@@ -102,7 +102,7 @@ function Explorer() {
 
   return (
     <div className="relative h-svh overflow-hidden bg-background">
-      <div className="contents" inert={full}>
+      <div className="contents" inert={!!full}>
       {/* Floating chrome over a full-bleed map. The right side stays free for the object panel. */}
       <header className="pointer-events-none absolute top-4 left-4 z-[1200] flex items-center gap-2">
         <div className="pointer-events-auto flex h-12 items-baseline gap-3 rounded-full bg-white/85 px-5 pt-[11px] shadow-float ring-1 ring-black/5 backdrop-blur-md max-sm:px-4">
@@ -191,7 +191,7 @@ function Explorer() {
       </div>
 
       <AnimatePresence>
-        {full && garment && <CompareView key="full" garment={garment} show3d={show3d} onClose={closeFull} />}
+        {full && garment && <CompareView key="full" garment={garment} show3d={show3d} initialStory={full.story} onClose={closeFull} />}
       </AnimatePresence>
     </div>
   )

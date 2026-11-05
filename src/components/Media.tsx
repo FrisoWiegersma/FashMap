@@ -20,7 +20,7 @@ const coarse = () => window.matchMedia('(pointer: coarse)').matches
  * The media area of the docked panel: the 3D view or the photo, with a switch when both exist.
  * Fills its parent, which sets the size. Key it per garment so it starts on 3D each time.
  */
-export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }) {
+export function Media({ garment, show3d, onStory }: { garment: Garment; show3d: boolean } & Pick<StoryProps, 'onStory'>) {
   const live = show3d && has3d(garment)
   const [mode, setMode] = useState<'3d' | 'photo'>('3d')
   const show = live && mode === '3d' ? 'live' : 'photo'
@@ -29,7 +29,7 @@ export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }
     <>
       <AnimatePresence initial={false}>
         <motion.div key={show} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-          {show === 'live' ? <Live garment={garment} /> : <GarmentImage garment={garment} size="panel" />}
+          {show === 'live' ? <Live garment={garment} onStory={onStory} /> : <GarmentImage garment={garment} size="panel" />}
         </motion.div>
       </AnimatePresence>
 
@@ -53,9 +53,11 @@ export function Media({ garment, show3d }: { garment: Garment; show3d: boolean }
   )
 }
 
+type StoryProps = { story?: string | null; onStory?: (id: string | null) => void }
+
 /** The garment's 360° spin (Modemuze objects on Micrio) or its 3D model. Fills a positioned parent. */
-export function Live({ garment }: { garment: Garment }) {
-  if (garment.micrio) return <SpinView id={garment.micrio} garment={garment} />
+export function Live({ garment, story, onStory }: { garment: Garment } & StoryProps) {
+  if (garment.micrio) return <SpinView id={garment.micrio} garment={garment} story={story} onStory={onStory} />
   return garment.model ? <ModelView src={garment.model} garment={garment} /> : null
 }
 
@@ -91,12 +93,28 @@ function Hint({ children }: { children: string }) {
   )
 }
 
-/** A Modemuze 360° object: photos taken all around the garment, turned by dragging. The Micrio viewer loads on first open. */
-function SpinView({ id, garment }: { id: string; garment: Garment }) {
-  const ref = useRef<HTMLElement>(null)
+type MicrioElement = HTMLElement & { $current?: { state: { marker: { set: (m?: string) => void }; $marker?: { id: string } } } }
+
+/**
+ * A Modemuze 360° object: photos taken all around the garment, turned by dragging. The Micrio viewer loads on first
+ * open. Its points open stories; Micrio's own popup is hidden and `onStory` lets FashMap show the story instead.
+ * `story` opens a point from outside (the story list), so the camera flies to it.
+ */
+function SpinView({ id, garment, story, onStory }: { id: string; garment: Garment } & StoryProps) {
+  const ref = useRef<MicrioElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [touched, setTouched] = useState(false)
   const logged = useRef(false)
+  const onStoryRef = useRef(onStory)
+  useEffect(() => {
+    onStoryRef.current = onStory
+  })
+
+  useEffect(() => {
+    if (state !== 'ready') return
+    const image = ref.current?.$current
+    if (image && image.state.$marker?.id !== (story ?? undefined)) image.state.marker.set(story ?? undefined)
+  }, [story, state])
 
   useEffect(() => {
     import('@micrio/client').catch(() => setState('error'))
@@ -108,13 +126,23 @@ function SpinView({ id, garment }: { id: string; garment: Garment }) {
       if (!logged.current) log('model_interact', { garment: garment.id, kind: '360' })
       logged.current = true
     }
+    const onOpen = (e: Event) => {
+      const markerId = (e as CustomEvent<{ id: string }>).detail.id
+      log('story_open', { garment: garment.id, story: markerId })
+      onStoryRef.current?.(markerId)
+    }
+    const onClosed = () => onStoryRef.current?.(null)
     el.addEventListener('show', onShow)
     el.addEventListener('panstart', onPan)
     el.addEventListener('pinchstart', onPan)
+    el.addEventListener('marker-open', onOpen)
+    el.addEventListener('marker-closed', onClosed)
     return () => {
       el.removeEventListener('show', onShow)
       el.removeEventListener('panstart', onPan)
       el.removeEventListener('pinchstart', onPan)
+      el.removeEventListener('marker-open', onOpen)
+      el.removeEventListener('marker-closed', onClosed)
     }
   }, [garment.id])
 
@@ -122,9 +150,10 @@ function SpinView({ id, garment }: { id: string; garment: Garment }) {
 
   return (
     <div className="relative size-full">
-      <micr-io ref={ref} id={id} data-minimap="false" data-logo="false" style={{ display: 'block', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
+      {/* lang="nl": Modemuze writes the stories in Dutch only, and Micrio loads no points for a language without data. */}
+      <micr-io ref={ref} id={id} lang="nl" data-minimap="false" data-logo="false" style={{ display: 'block', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
       <AnimatePresence>{state === 'loading' && <Loading label="Loading 360° view" />}</AnimatePresence>
-      <AnimatePresence>{state === 'ready' && !touched && <Hint>Drag to turn</Hint>}</AnimatePresence>
+      <AnimatePresence>{state === 'ready' && !touched && <Hint>Drag to turn, tap a point for its story</Hint>}</AnimatePresence>
     </div>
   )
 }
