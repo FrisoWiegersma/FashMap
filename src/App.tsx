@@ -1,13 +1,16 @@
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import brandSymbol from '@/assets/brand/fashmap-symbol.png'
 import { AdminPage } from '@/components/AdminPage'
 import { CompareView } from '@/components/CompareView'
 import { Filters } from '@/components/Filters'
 import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
 import { Timeline } from '@/components/Timeline'
+import Button21 from '@/components/watermelon/button-21'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
+import { MorphingButton } from '@/components/watermelon/morphing-button'
 import garmentsData from '@/data/garments.json'
 import { applyFilters, groupByPlace, MAX_YEAR, MIN_YEAR, NO_FILTERS, type Filters as FilterState, type Garment, type Period } from '@/lib/data'
 import { isAdmin, lockedView, log } from '@/lib/log'
@@ -104,9 +107,11 @@ function Explorer() {
     <div className="relative h-svh overflow-hidden bg-background">
       <div className="contents" inert={!!full}>
       {/* Floating chrome over a full-bleed map. The right side stays free for the object panel. */}
-      <header className="pointer-events-none absolute top-4 left-4 z-[1200] flex items-center gap-2">
-        <div className="pointer-events-auto flex h-12 items-baseline gap-3 rounded-full bg-white/85 px-5 pt-[11px] shadow-float ring-1 ring-black/5 backdrop-blur-md max-sm:px-4">
-          <h1 className="font-heading text-[22px] leading-none font-medium tracking-[-0.02em] text-foreground">FashMap</h1>
+      <header className="pointer-events-none absolute top-4 left-4 z-[1200] flex items-center gap-1.5 max-sm:right-4 max-sm:flex-wrap sm:gap-2">
+        <div className="pointer-events-auto flex h-12 shrink-0 items-center gap-3 rounded-full bg-white/85 shadow-float ring-1 ring-black/5 backdrop-blur-md lg:pr-4">
+          <h1 aria-label="FashMap" className="shrink-0">
+            <MorphingButton symbol={brandSymbol} />
+          </h1>
           <p className="hidden text-[13px] text-muted-foreground lg:block">Cultural dress across place and time</p>
         </div>
         {/* Eval mode (?c=map|grid) locks the view, so the toggle goes. */}
@@ -126,6 +131,7 @@ function Explorer() {
         <div className="pointer-events-auto">
           <Filters garments={garments} value={filters} onChange={changeFilters} shown={filtered.length} />
         </div>
+        <Button21 />
       </header>
 
       <main className={garment ? 'fm-panel-open' : undefined}>

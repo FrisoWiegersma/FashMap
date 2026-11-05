@@ -110,7 +110,29 @@ public/models/         Our own .glb scans
 
 ## Deploying
 
-`npm run build` writes a static site to `dist/` that any static host can serve. It is built for GitHub Pages at `https://<user>.github.io/FashMap/`, so `base` in `vite.config.ts` is `/FashMap/`. If you serve it from another path, change `base` to match.
+`npm run build` writes a static site to `dist/` that any static host can serve. It is built for GitHub Pages at `https://<user>.github.io/FashMap/`, so `base` in `vite.config.ts` is `/FashMap/`. For another path, pass it when building, for example `npm run build -- --base=/`.
+
+### Docker
+
+With Docker Engine and Docker Compose installed, build and start the site:
+
+```bash
+docker compose up -d --build
+```
+
+Open <http://localhost:8080/>. The image builds the app with Node.js and serves only the production files with Nginx. It uses `/` as its base path, so study URLs become `/?p=P07&c=map`, `/?p=P07&c=grid` and `/?admin=1`.
+
+Docker exposes port 8080 on localhost. To reach it from your phone or another device on your tailnet, use the host's Tailscale installation to create an HTTPS link:
+
+```bash
+tailscale serve --bg --https=8446 http://127.0.0.1:8080
+```
+
+Open the HTTPS address printed by Tailscale, such as `https://<host>.<tailnet>.ts.net:8446/`, with Tailscale connected on the other device. Choose another HTTPS port if 8446 is already used. The host must stay on, and your tailnet access rules must allow that port. Map tiles, photos and spins still need an internet connection.
+
+The link persists across restarts. To remove this link, run `tailscale serve --https=8446 off`.
+
+After updating the code, run `docker compose up -d --build` again. View server logs with `docker compose logs -f`, or stop the site with `docker compose down`. No volume is needed: study logs stay in each visitor's browser and are specific to the site's origin (scheme, host and port).
 
 ## Built with
 

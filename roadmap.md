@@ -24,7 +24,7 @@ The first version is built: F1–F6 and F8, plus a light version of F9. Next up:
 
 ## Stack
 
-Vite + React + TypeScript, Tailwind v4, shadcn/ui. Components come from the Watermelon UI (`@watermelon`) and Kokonut UI (`@kokonutui`) registries. Map: `react-map-gl` (MapLibre) on OpenFreeMap vector tiles (open source, no API key). 360° views: `@micrio/client`. 3D: `@google/model-viewer`. Data: one static JSON file. Hosting: GitHub Pages.
+Vite + React + TypeScript, Tailwind v4, shadcn/ui. Components come from the Watermelon UI (`@watermelon`) and Kokonut UI (`@kokonutui`) registries. Map: `react-map-gl` (MapLibre) on OpenFreeMap vector tiles (open source, no API key). 360° views: `@micrio/client`. 3D: `@google/model-viewer`. Data: one static JSON file. Hosting: GitHub Pages or a Docker image served by Nginx.
 
 Install feature dependencies when the feature is built, not before.
 
@@ -252,6 +252,7 @@ Each feature lists what it does, which components it uses, the details, and when
 
 ## Cross-cutting requirements
 
+- **Brand:** the user's supplied dress-in-a-map-pin artwork, recoloured to cobalt without redrawing, paired with the Newsreader wordmark. The full name shows from 640 px; on smaller screens Watermelon's Morphing Button reveals it on tap and closes on a second tap, an outside tap or Escape. Header controls wrap when needed. A Watermelon Button 21 links to GitHub. The symbol supplies the favicon and touch icons; the original reference and transparent PNG master live in `docs/brand/`. These are raster assets, not vectors.
 - **Overview first, details on demand:** the map shows only dots until the user clicks.
 - **Linked views:** one state, so a change shows up everywhere in the same render.
 - **No instructions needed:** visible labels, obvious controls, and an empty state ("No garments in this period").
@@ -262,7 +263,8 @@ Each feature lists what it does, which components it uses, the details, and when
   - Target: the map can be used within 2 s on university Wi-Fi.
 - **Deploy:**
   - GitHub Pages through a GitHub Actions workflow (`npm ci && npm run build`, then `actions/deploy-pages`).
-  - Vite `base: '/FashMap/'`.
+  - Vite `base: '/FashMap/'` for GitHub Pages.
+  - Docker: a Node.js 24 build stage builds with `--base=/`, then Nginx serves the static files. `docker compose up -d --build` exposes port 8080 on localhost. For other devices, the host's Tailscale Serve provides an HTTPS link (`tailscale serve --bg --https=8446 http://127.0.0.1:8080`). Study URLs use `/` and logs remain in each browser's local storage.
 
 ## Open decisions
 
