@@ -4,6 +4,7 @@ import { GarmentImage } from '@/components/GarmentImage'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
 import { assetUrl, has3d, type Garment } from '@/lib/data'
 import { log } from '@/lib/log'
+import { loadTranslations } from '@/lib/micrio'
 
 declare module 'react' {
   namespace JSX {
@@ -146,11 +147,43 @@ function SpinView({ id, garment, story, onStory }: { id: string; garment: Garmen
     }
   }, [garment.id])
 
+  // Micrio draws a tooltip and a hover label with each point's title, in Dutch. Swap them for the English
+  // title, and again whenever Micrio redraws its points.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const stop = new AbortController() // aborted when the garment changes or the view closes
+    let english: Record<string, { title: string }> = {}
+    const translate = () => {
+      for (const point of el.querySelectorAll<HTMLButtonElement>('button.micrio-marker[id]')) {
+        const title = english[point.id]?.title
+        if (!title) continue
+        if (point.title !== title) point.title = title
+        const label = point.querySelector('label')
+        if (label && label.textContent !== title) label.textContent = title
+      }
+    }
+    const observer = new MutationObserver(translate)
+    loadTranslations(id)
+      .then((t) => {
+        if (stop.signal.aborted) return
+        english = t
+        translate()
+        observer.observe(el, { childList: true, subtree: true, characterData: true })
+      })
+      .catch(() => {}) // without translations the Dutch titles stay
+    return () => {
+      stop.abort()
+      observer.disconnect()
+    }
+  }, [id])
+
   if (state === 'error') return <Fallback garment={garment} what="360° view" />
 
   return (
     <div className="relative size-full">
-      {/* lang="nl": Modemuze writes the stories in Dutch only, and Micrio loads no points for a language without data. */}
+      {/* lang="nl": Micrio loads no points for a language without data, and Modemuze writes them in Dutch only.
+          Visitors never see this text: Micrio's popup is hidden and FashMap shows the English translation instead. */}
       <micr-io ref={ref} id={id} lang="nl" data-minimap="false" data-logo="false" style={{ display: 'block', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
       <AnimatePresence>{state === 'loading' && <Loading label="Loading 360° view" />}</AnimatePresence>
       <AnimatePresence>{state === 'ready' && !touched && <Hint>Drag to turn, tap a point for its story</Hint>}</AnimatePresence>
