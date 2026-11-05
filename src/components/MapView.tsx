@@ -76,7 +76,7 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
       .then((s: StyleJson) => setStyle(recolour(s)))
   }, [])
 
-  // Fit to all places once, at load. The period never moves the camera.
+  // Fit to all places once, at load. Filters never move the camera.
   const [allBounds] = useState(() => boundsOf(places))
   const place = places.find((p) => p.name === selectedPlace)
 

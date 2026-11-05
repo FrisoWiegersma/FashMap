@@ -27,6 +27,9 @@ export type Garment = {
 
 export type Period = [from: number, to: number]
 
+export type Filters = { types: string[]; museums: string[] }
+export const NO_FILTERS: Filters = { types: [], museums: [] }
+
 export type Place = {
   name: string
   country: string
@@ -40,6 +43,19 @@ export const MIN_YEAR = 1500
 export const MAX_YEAR = new Date().getFullYear()
 
 export const inPeriod = (g: Garment, [from, to]: Period) => g.start <= to && g.end >= from
+
+/** An empty list means "everything" for that filter. */
+export const applyFilters = (garments: Garment[], f: Filters) =>
+  garments.filter((g) => (!f.types.length || f.types.includes(g.type)) && (!f.museums.length || f.museums.includes(g.museum)))
+
+export const filterCount = (f: Filters) => f.types.length + f.museums.length
+
+/** Distinct values of a field with their counts, sorted by name. */
+export function options(garments: Garment[], key: 'type' | 'museum') {
+  const counts = new Map<string, number>()
+  for (const g of garments) counts.set(g[key], (counts.get(g[key]) ?? 0) + 1)
+  return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([value, count]) => ({ value, count }))
+}
 
 export function groupByPlace(garments: Garment[], period: Period): Place[] {
   const byName = new Map<string, Place>()

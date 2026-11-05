@@ -1,12 +1,13 @@
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { Filters } from '@/components/Filters'
 import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
 import { Timeline } from '@/components/Timeline'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
 import garmentsData from '@/data/garments.json'
-import { groupByPlace, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
+import { applyFilters, groupByPlace, MAX_YEAR, MIN_YEAR, NO_FILTERS, type Filters as FilterState, type Garment, type Period } from '@/lib/data'
 import { PANEL_SPACE } from '@/lib/utils'
 
 // MapLibre is ~1 MB, so the map loads as its own chunk while the header and timeline paint.
@@ -28,12 +29,14 @@ export default function App() {
 function Explorer() {
   const [view, setView] = useState<View>('map')
   const [period, setPeriod] = useState<Period>([MIN_YEAR, MAX_YEAR])
+  const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [placeName, setPlaceName] = useState<string | null>(null)
   const [garmentId, setGarmentId] = useState<string | null>(null)
   const mapRef = useRef<MapRef>(null)
 
   // Everything below is derived from the state above, so every view updates in the same render.
-  const places = useMemo(() => groupByPlace(garments, period), [period])
+  const filtered = useMemo(() => applyFilters(garments, filters), [filters])
+  const places = useMemo(() => groupByPlace(filtered, period), [filtered, period])
   const garment = garments.find((g) => g.id === garmentId) ?? null
 
   const closeGarment = () => setGarmentId(null)
@@ -76,6 +79,9 @@ function Explorer() {
             onChange={setView}
           />
         </div>
+        <div className="pointer-events-auto">
+          <Filters garments={garments} value={filters} onChange={setFilters} shown={filtered.length} />
+        </div>
       </header>
 
       <main className={garment ? 'fm-panel-open' : undefined}>
@@ -93,13 +99,34 @@ function Explorer() {
               mapRef={mapRef}
             />
           </Suspense>
-          <Timeline period={period} onChange={setPeriod} garments={garments} total={garments.length} panelOpen={!!garment} />
+          <AnimatePresence>
+            {places.length === 0 && (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                className="absolute top-1/3 left-1/2 z-[1000] w-[min(340px,calc(100%-2rem))] -translate-x-1/2 rounded-[18px] bg-white/90 px-6 py-5 text-center shadow-float ring-1 ring-black/5 backdrop-blur-md"
+              >
+                <p className="font-heading text-xl text-foreground">No garments match</p>
+                <p className="mt-1 text-sm text-muted-foreground">Remove a filter to put the dots back.</p>
+                <button
+                  type="button"
+                  onClick={() => setFilters(NO_FILTERS)}
+                  className="mt-4 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-white transition-[scale,background-color] hover:bg-zinc-800 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  Clear filters
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <Timeline period={period} onChange={setPeriod} garments={filtered} total={garments.length} panelOpen={!!garment} />
         </div>
 
         <AnimatePresence>
           {view === 'grid' && (
             <motion.div key="grid" className="absolute inset-0 z-[1100]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-              <GridView garments={garments} selectedId={garmentId ?? undefined} onSelect={setGarmentId} panelOpen={!!garment} />
+              <GridView garments={filtered} selectedId={garmentId ?? undefined} onSelect={setGarmentId} panelOpen={!!garment} onClearFilters={() => setFilters(NO_FILTERS)} />
             </motion.div>
           )}
         </AnimatePresence>

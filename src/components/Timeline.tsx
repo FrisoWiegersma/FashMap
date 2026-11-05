@@ -10,7 +10,7 @@ const YEAR = { useGrouping: false } as const
 type Props = {
   period: Period
   onChange: (p: Period) => void
-  garments: Garment[]
+  garments: Garment[] // after filters
   total: number
   panelOpen: boolean
 }
@@ -36,7 +36,7 @@ export function Timeline({ period, onChange, garments, total, panelOpen }: Props
         </p>
         <p className="flex items-center gap-2 pb-0.5 text-right text-[13px] text-muted-foreground sm:gap-3 sm:text-sm" aria-live="polite">
           {shown === 0 ? (
-            <span>No garments from this period. Widen the range.</span>
+            <span>{garments.length ? 'No garments from this period. Widen the range.' : 'No garments match the filters.'}</span>
           ) : (
             <span>
               <NumberFlow value={shown} className="font-medium text-foreground tabular-nums" /> of {total} garments
