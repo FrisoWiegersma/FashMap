@@ -7,8 +7,8 @@ import { motion } from 'motion/react'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'react-map-gl/maplibre'
 import { GarmentImage } from '@/components/GarmentImage'
-import { countryName, dotRadius, inPeriod, type Period, type Place } from '@/lib/data'
-import { cn } from '@/lib/utils'
+import { countryName, dotRadius, inPeriod, type Garment, type Period, type Place } from '@/lib/data'
+import { cn, PANEL_SPACE } from '@/lib/utils'
 
 // This module is loaded lazily (MapLibre is ~1 MB), so the header and timeline paint first.
 // MapLibre looks for its worker next to its own module, which breaks once Vite bundles it. Point it at the file.
@@ -16,6 +16,7 @@ maplibregl.setWorkerUrl(maplibreWorker)
 
 const TIMELINE_SPACE = 230
 const HEADER_SPACE = 80
+const isDesktop = () => window.innerWidth >= 768
 const ease = (t: number) => 1 - Math.pow(1 - t, 3)
 
 // OpenFreeMap: open-source vector tiles from OpenStreetMap data. No API key, no usage limits. Its TileJSON carries the attribution.
@@ -61,10 +62,12 @@ type Props = {
   selectedPlace: string | null
   onSelectPlace: (name: string) => void
   onClosePlace: () => void
+  selectedGarment: Garment | null
+  onSelectGarment: (id: string) => void
   mapRef: RefObject<MapRef | null>
 }
 
-export default function MapView({ places, period, selectedPlace, onSelectPlace, onClosePlace, mapRef }: Props) {
+export default function MapView({ places, period, selectedPlace, onSelectPlace, onClosePlace, selectedGarment, onSelectGarment, mapRef }: Props) {
   const [style, setStyle] = useState<StyleSpecification>()
   useEffect(() => {
     // ponytail: no fallback if the style can't load; the map stays grey. Add an OSM raster style as fallback if that bites.
@@ -100,6 +103,7 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
         >
           <AttributionControl position="bottom-right" compact={false} />
           <Dots places={places} selectedPlace={selectedPlace} onSelectPlace={onSelectPlace} />
+          <KeepInView garment={selectedGarment} />
           {place && (
             <Popup
               key={place.name}
@@ -114,8 +118,8 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
               maxWidth="none"
               className="fm-popup"
             >
-              <PlaceList place={place} period={period} onClose={onClosePlace} />
-              <PopupInView />
+              <PlaceList place={place} period={period} selectedId={selectedGarment?.id} onSelect={onSelectGarment} onClose={onClosePlace} />
+              <PopupInView panelOpen={!!selectedGarment} />
             </Popup>
           )}
         </Map>
@@ -200,8 +204,24 @@ function Dot({ place, intro, selected, onActivate }: DotProps) {
   )
 }
 
-/** Pan so a freshly opened place list fits on screen, clear of the header. */
-function PopupInView() {
+/** Ease the map so the open garment's place isn't hidden behind the panel or the timeline. */
+function KeepInView({ garment }: { garment: Garment | null }) {
+  const { current: map } = useMap()
+  useEffect(() => {
+    if (!garment || !map || !isDesktop()) return
+    const p = map.project([garment.lng, garment.lat])
+    const { width, height } = map.getContainer().getBoundingClientRect()
+    const right = width - PANEL_SPACE - 40
+    const bottom = height - TIMELINE_SPACE
+    const dx = p.x > right ? p.x - right : p.x < 60 ? p.x - 60 : 0
+    const dy = p.y > bottom ? p.y - bottom : 0
+    if (dx || dy) map.panBy([dx, dy], { duration: 700, easing: ease })
+  }, [garment, map])
+  return null
+}
+
+/** Pan so a freshly opened place list fits on screen, clear of the header, the timeline and the panel. */
+function PopupInView({ panelOpen }: { panelOpen: boolean }) {
   const { current: map } = useMap()
   const ref = useRef<HTMLSpanElement>(null)
   // Only on open: following every resize would fight the user's own panning. One frame later, so the popup is in the DOM.
@@ -211,7 +231,7 @@ function PopupInView() {
       if (!map || !popup) return
       const r = popup.getBoundingClientRect()
       const c = map.getContainer().getBoundingClientRect()
-      const right = c.right - 16
+      const right = c.right - 16 - (panelOpen && isDesktop() ? PANEL_SPACE : 0)
       const dx = r.left < c.left + 16 ? r.left - c.left - 16 : r.right > right ? r.right - right : 0
       const dy = r.top < c.top + HEADER_SPACE ? r.top - c.top - HEADER_SPACE : 0
       if (dx || dy) map.panBy([dx, dy], { duration: 500, easing: ease })
@@ -245,9 +265,9 @@ function ZoomControls({ mapRef, bounds }: { mapRef: RefObject<MapRef | null>; bo
   )
 }
 
-type PlaceListProps = { place: Place; period: Period; onClose: () => void }
+type PlaceListProps = { place: Place; period: Period; selectedId?: string; onSelect: (id: string) => void; onClose: () => void }
 
-function PlaceList({ place, period, onClose }: PlaceListProps) {
+function PlaceList({ place, period, selectedId, onSelect, onClose }: PlaceListProps) {
   const n = place.garments.length
   return (
     <div className="w-[300px]">
@@ -269,9 +289,18 @@ function PlaceList({ place, period, onClose }: PlaceListProps) {
       <ul className="max-h-[336px] overflow-y-auto overscroll-contain p-2">
         {place.garments.map((g, i) => {
           const live = inPeriod(g, period)
+          const active = g.id === selectedId
           return (
             <motion.li key={g.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 + Math.min(i, 8) * 0.035, duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}>
-              <div className="flex items-center gap-3 rounded-xl p-2">
+              <button
+                type="button"
+                onClick={() => onSelect(g.id)}
+                aria-current={active || undefined}
+                className={cn(
+                  'group flex w-full items-center gap-3 rounded-xl p-2 text-left transition-[background-color,scale] duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary active:scale-[0.985]',
+                  active && 'bg-muted',
+                )}
+              >
                 <span className={cn('h-12 w-10 shrink-0 overflow-hidden rounded-md ring-1 ring-black/5 transition-opacity', !live && 'opacity-45')}>
                   <span className="block size-full transition-transform duration-500 ease-out group-hover:scale-110">
                     <GarmentImage garment={g} size="thumb" />
@@ -284,7 +313,8 @@ function PlaceList({ place, period, onClose }: PlaceListProps) {
                     {!live && ', outside period'}
                   </span>
                 </span>
-              </div>
+                <span className={cn('mr-1 size-1.5 shrink-0 rounded-full bg-primary transition-[opacity,scale] duration-200', active ? 'scale-100 opacity-100' : 'scale-0 opacity-0')} aria-hidden />
+              </button>
             </motion.li>
           )
         })}

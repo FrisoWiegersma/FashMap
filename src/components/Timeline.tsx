@@ -1,6 +1,7 @@
 import NumberFlow from '@number-flow/react'
 import { Slider } from '@/components/ui/slider'
 import { inPeriod as overlaps, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
+import { cn } from '@/lib/utils'
 
 const CENTURIES = [1500, 1600, 1700, 1800, 1900, 2000]
 const pct = (year: number) => ((year - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100
@@ -11,9 +12,10 @@ type Props = {
   onChange: (p: Period) => void
   garments: Garment[]
   total: number
+  panelOpen: boolean
 }
 
-export function Timeline({ period, onChange, garments, total }: Props) {
+export function Timeline({ period, onChange, garments, total, panelOpen }: Props) {
   const [from, to] = period
   const changed = from !== MIN_YEAR || to !== MAX_YEAR
   const shown = garments.filter((g) => overlaps(g, period)).length
@@ -21,7 +23,10 @@ export function Timeline({ period, onChange, garments, total }: Props) {
   return (
     <section
       aria-label="Period"
-      className="absolute bottom-4 left-4 z-[1000] w-[min(720px,calc(100%-2rem))] rounded-[22px] bg-white/88 px-5 pt-4 pb-3 shadow-float ring-1 ring-black/5 backdrop-blur-md sm:px-6"
+      className={cn(
+        'absolute bottom-4 left-4 z-[1000] rounded-[22px] bg-white/88 px-5 pt-4 pb-3 shadow-float ring-1 ring-black/5 backdrop-blur-md transition-[width] duration-300 ease-out sm:px-6',
+        panelOpen ? 'w-[min(720px,calc(100%-2rem))] md:w-[min(720px,calc(100%-2rem-470px))]' : 'w-[min(720px,calc(100%-2rem))]',
+      )}
     >
       <div className="flex items-end justify-between gap-6">
         <p className="font-heading text-[28px] leading-none tracking-[-0.01em] whitespace-nowrap text-foreground tabular-nums sm:text-[34px]">

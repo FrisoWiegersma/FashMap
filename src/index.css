@@ -121,6 +121,14 @@
 }
 .maplibregl-ctrl-attrib a { color: inherit; }
 
+/* Keep zoom and attribution to the left of the open panel. */
+.maplibregl-ctrl-bottom-right,
+.fm-map-controls { transition: right 0.3s ease-out; }
+@media (min-width: 768px) {
+    .fm-panel-open .maplibregl-ctrl-bottom-right { right: 470px; }
+    .fm-panel-open .fm-map-controls { right: 470px; }
+}
+
 /* ---------- FashMap: placeholder swatch (a fine twill weave) ---------- */
 
 .fm-weave {

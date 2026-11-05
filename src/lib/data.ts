@@ -64,3 +64,21 @@ export const countryName = (code: string) => regions.of(code) ?? code
 
 /** Resolve a data path (relative to public/) or pass an absolute URL through. */
 export const assetUrl = (path: string) => (/^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path}`)
+
+export const yearRange = (g: Garment) => (g.start === g.end ? `${g.start}` : `${g.start}–${g.end}`)
+
+/** The detail rows of a garment, in the order the panel and the compare view show them. Unknown values are null. */
+export function garmentFields(g: Garment): [label: string, value: string | null][] {
+  const list = (xs: string[]) => (xs.length ? xs.join(', ') : null)
+  return [
+    ['Date', g.dateLabel === yearRange(g) ? g.dateLabel : `${g.dateLabel} (${yearRange(g)})`],
+    ['Place', g.place === countryName(g.country) ? g.place : `${g.place}, ${countryName(g.country)}`],
+    ['Museum', g.museum],
+    ['Object number', g.objectNumber],
+    ['Type', g.type[0].toUpperCase() + g.type.slice(1)],
+    ['Maker', g.maker],
+    ['Material', list(g.materials)],
+    ['Technique', list(g.techniques)],
+    ['Rights', g.rights],
+  ]
+}
