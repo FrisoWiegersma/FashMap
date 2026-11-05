@@ -79,7 +79,7 @@ node scripts/modemuze.ts modemuze-raw.json
 
 If `modemuze-raw.json` doesn't exist yet, the script first fetches every object page from modemuze.nl and looks up each place with Nominatim, one request at a time. The raw file holds Modemuze's Dutch texts, so it is ignored by git.
 
-Facts such as museum, maker, materials and dates come from Modemuze and are translated to English. Titles, types and the short summaries are our own, written in `scripts/modemuze-en.json`. Museum texts are not copied; every garment links to its page on Modemuze. Photos, spins and stories stay on Micrio and load from there.
+Facts such as museum, maker, materials and dates come from Modemuze and are translated to English. Titles, types and the short summaries are our own, written in `scripts/modemuze-en.json`. Every garment links to its page on Modemuze. Photos, spins and the original stories load from Micrio. English story translations are in `src/data/stories-en.json`, loaded only when a garment is opened; new stories without a translation fall back to Dutch.
 
 To add one of our own 3D scans, see [`public/models/README.md`](public/models/README.md). The [roadmap](roadmap.md) describes the data model, the features and the open decisions.
 
@@ -100,8 +100,9 @@ src/
   lib/
     data.ts            Types, period rule, grouping, filters
     log.ts             Eval mode and logging
-    micrio.ts          Stories from Micrio
+    micrio.ts          Stories from Micrio and English translations
   data/garments.json   Generated garment records
+  data/stories-en.json English story translations by Micrio and marker id
 scripts/
   modemuze.ts          Importer for the Modemuze collection
   modemuze-en.json     English titles, types and summaries
@@ -122,17 +123,27 @@ docker compose up -d --build
 
 Open <http://localhost:8080/>. The image builds the app with Node.js and serves only the production files with Nginx. It uses `/` as its base path, so study URLs become `/?p=P07&c=map`, `/?p=P07&c=grid` and `/?admin=1`.
 
-Docker exposes port 8080 on localhost. To reach it from your phone or another device on your tailnet, use the host's Tailscale installation to create an HTTPS link:
+The host port is configurable with `FASHMAP_PORT` and defaults to 8080. It always binds to `127.0.0.1`. For example, use an untracked `.env` file to persist a different port:
 
 ```bash
-tailscale serve --bg --https=8446 http://127.0.0.1:8080
+printf 'FASHMAP_PORT=8081\n' > .env
+docker compose up -d --build
 ```
 
-Open the HTTPS address printed by Tailscale, such as `https://<host>.<tailnet>.ts.net:8446/`, with Tailscale connected on the other device. Choose another HTTPS port if 8446 is already used. The host must stay on, and your tailnet access rules must allow that port. Map tiles, photos and spins still need an internet connection.
+### Homelab and Cloudflare Tunnel
 
-The link persists across restarts. To remove this link, run `tailscale serve --https=8446 off`.
+The homelab runs the site from `/home/frisowiegersma/fashmap` as `frisowiegersma`, with `FASHMAP_PORT=8081` in its `.env` file. Port 8080 is used by another service. Transfer the committed source without local files or dependencies:
 
-After updating the code, run `docker compose up -d --build` again. View server logs with `docker compose logs -f`, or stop the site with `docker compose down`. No volume is needed: study logs stay in each visitor's browser and are specific to the site's origin (scheme, host and port).
+```bash
+git archive HEAD | ssh frisowiegersma@homelabfriso 'mkdir -p /home/frisowiegersma/fashmap && tar -x -C /home/frisowiegersma/fashmap'
+ssh frisowiegersma@homelabfriso 'cd /home/frisowiegersma/fashmap && printf "FASHMAP_PORT=8081\n" > .env && docker compose up -d --build fashmap'
+```
+
+Use the existing Cloudflare tunnel's published application route with hostname `fashmap.frisowiegersma.com`, service type **HTTP**, and URL `localhost:8081`. The tunnel connector runs on the homelab host. The public site is <https://fashmap.frisowiegersma.com/>; no Tailscale Serve changes are needed.
+
+After updating the code, transfer it and run `docker compose up -d --build fashmap` again. Verify the localhost response on the homelab (`curl -fI http://127.0.0.1:8081/`) and the public HTTPS site, including `/favicon.ico`, `/apple-touch-icon.png`, and the map's `.mjs` worker (served as JavaScript). Map tiles, photos and spins need an internet connection.
+
+View server logs with `docker compose logs -f fashmap`. If deployment or verification fails, stop only this service with `docker compose stop fashmap` from its directory; leave the tunnel and other homelab services running. No database, volumes or registry are needed: study logs stay in each visitor's browser and are specific to the site's origin (scheme, host and port).
 
 ## Built with
 

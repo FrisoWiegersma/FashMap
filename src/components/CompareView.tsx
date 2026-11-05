@@ -155,7 +155,7 @@ export function CompareView({ garment, show3d, initialStory = null, onClose }: P
                 </motion.div>
               ) : (
                 <motion.div key="stories" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <p className="text-[13px] text-muted-foreground">Stories from Modemuze, in Dutch. Each one belongs to a point on the 360° view.</p>
+                  <p className="text-[13px] text-muted-foreground">Stories from Modemuze, translated from Dutch. Each one belongs to a point on the 360° view.</p>
                   <ul className="mt-3 -mx-2">
                     {stories.map((s) => (
                       <StoryItem key={s.id} story={s} open={s.id === active?.id} onToggle={() => openStory(s.id === active?.id ? null : s.id)} />
@@ -201,7 +201,7 @@ function StoryItem({ story, open, onToggle }: { story: Story; open: boolean; onT
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: EASE }} className="overflow-hidden">
-            <div lang="nl" className="px-2 pb-4 pl-[30px]">
+            <div lang={story.lang} className="px-2 pb-4 pl-[30px]">
               <RichText html={story.body} className="space-y-3 text-[15px] leading-relaxed text-foreground/85 [&_strong]:font-medium [&_strong]:text-foreground" />
               {story.author && <p className="mt-3 text-xs text-muted-foreground">By {story.author}</p>}
             </div>

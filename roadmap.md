@@ -62,7 +62,7 @@ Install feature dependencies when the feature is built, not before.
 ```
 
 - `id` is the Modemuze slug. `dateLabel` is the English form of the museum's date, and the UI shows it; `start` and `end` are for filtering.
-- `micrio` is the Micrio id of the 360° photo spin. The spin, its points ("stories") and the photos load live from Micrio, so none of them sit in the repo.
+- `micrio` is the Micrio id of the 360° photo spin. The spin, its points ("stories") and the photos load live from Micrio. English story translations live in `src/data/stories-en.json`, keyed by Micrio and marker id, and load only when a garment is opened. Stories without translations fall back to Dutch.
 - `model` is a path to our own `.glb` scan in `public/models/` (see the README there), or `null`. A garment shows its spin when it has one, otherwise its model, otherwise its photo.
 - `type` is one of: dress, outfit, coat, top, skirt, headwear, footwear, jewellery, accessory, armour.
 - `objectNumber`, `maker` and `rights` are `null` when unknown. Unknown makers are "Anonymous" (Modemuze "Anoniem") or "Unknown" ("onbekend").
@@ -264,7 +264,7 @@ Each feature lists what it does, which components it uses, the details, and when
 - **Deploy:**
   - GitHub Pages through a GitHub Actions workflow (`npm ci && npm run build`, then `actions/deploy-pages`).
   - Vite `base: '/FashMap/'` for GitHub Pages.
-  - Docker: a Node.js 24 build stage builds with `--base=/`, then Nginx serves the static files. `docker compose up -d --build` exposes port 8080 on localhost. For other devices, the host's Tailscale Serve provides an HTTPS link (`tailscale serve --bg --https=8446 http://127.0.0.1:8080`). Study URLs use `/` and logs remain in each browser's local storage.
+  - Docker: a Node.js 24 build stage builds with `--base=/`, then Nginx serves the static files. `docker compose up -d --build` binds to localhost on `${FASHMAP_PORT:-8080}`. The homelab runs from `/home/frisowiegersma/fashmap` as `frisowiegersma`, with `FASHMAP_PORT=8081` in its untracked `.env`. The existing Cloudflare tunnel routes `https://fashmap.frisowiegersma.com` to `http://localhost:8081`; no Tailscale Serve changes are needed. Study URLs use `/` and logs remain in each browser's local storage. On deployment failure, stop only the FashMap service.
 
 ## Open decisions
 
