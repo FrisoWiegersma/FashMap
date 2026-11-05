@@ -57,6 +57,14 @@ export function options(garments: Garment[], key: 'type' | 'museum') {
   return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([value, count]) => ({ value, count }))
 }
 
+/** Garments per bin of `size` years. A garment counts in every bin its range overlaps. */
+export function histogram(garments: Garment[], size = 25, min = MIN_YEAR, max = MAX_YEAR) {
+  const bins: { from: number; to: number; count: number }[] = []
+  for (let from = min; from <= max; from += size) bins.push({ from, to: Math.min(from + size - 1, max), count: 0 })
+  for (const g of garments) for (const b of bins) if (inPeriod(g, [b.from, b.to])) b.count++
+  return bins
+}
+
 export function groupByPlace(garments: Garment[], period: Period): Place[] {
   const byName = new Map<string, Place>()
   for (const g of garments) {

@@ -1,6 +1,7 @@
 import NumberFlow from '@number-flow/react'
+import { useMemo } from 'react'
 import { Slider } from '@/components/ui/slider'
-import { inPeriod as overlaps, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
+import { histogram, inPeriod as overlaps, MAX_YEAR, MIN_YEAR, type Garment, type Period } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 const CENTURIES = [1500, 1600, 1700, 1800, 1900, 2000]
@@ -19,6 +20,8 @@ export function Timeline({ period, onChange, garments, total, panelOpen }: Props
   const [from, to] = period
   const changed = from !== MIN_YEAR || to !== MAX_YEAR
   const shown = garments.filter((g) => overlaps(g, period)).length
+  const bins = useMemo(() => histogram(garments), [garments])
+  const peak = Math.max(1, ...bins.map((b) => b.count))
 
   return (
     <section
@@ -54,8 +57,30 @@ export function Timeline({ period, onChange, garments, total, panelOpen }: Props
         </p>
       </div>
 
+      {/* Garments per 25 years, so empty stretches show before you drag into them. Bars in the period are cobalt, the rest pale grey. */}
+      <div className="relative mx-[9px] mt-4 h-9" aria-hidden>
+        {bins.map((b) => {
+          const live = b.to >= from && b.from <= to
+          return (
+            <span
+              key={b.from}
+              className="absolute bottom-0 px-px"
+              style={{ left: `${pct(b.from)}%`, width: `${pct(Math.min(b.to + 1, MAX_YEAR)) - pct(b.from)}%`, height: '100%' }}
+            >
+              <span
+                className={cn(
+                  'absolute inset-x-px bottom-0 rounded-t-[3px] transition-[height,background-color] duration-300 ease-out',
+                  live ? 'bg-primary/85' : 'bg-zinc-300/70',
+                )}
+                style={{ height: b.count ? `${Math.max(8, (b.count / peak) * 100)}%` : '2px' }}
+              />
+            </span>
+          )
+        })}
+      </div>
+
       <Slider
-        className="mt-5"
+        className="mt-1.5"
         min={MIN_YEAR}
         max={MAX_YEAR}
         step={5}
