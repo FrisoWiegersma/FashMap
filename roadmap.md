@@ -153,6 +153,11 @@ Each feature lists what it does, which components it uses, the details, and when
   - If there is no model, show `image` at full panel width.
   - Clicking the place name flies the map to that place (`map.flyTo`).
   - Close with the X button and with Esc. Focus returns to the list row that opened the panel.
+  - "Open full page" shows the 360° view, the photos and the stories at full size. From 1024 px they are three columns. Below that, one media area stays at the top, with a 360°/Photos switch and the close button on it, and only the text underneath scrolls. That way a point on the spin and its story are on screen together, and opening a story switches back to the 360° view.
+  - On phones (under 768 px) a tap opens the full page directly and skips the panel. There the panel covered the map and showed the same things. Closing the page closes the garment, and its place link goes back to the map.
+  - The full page is a browser history entry (`pushState`), so Back or a phone's back swipe closes it instead of leaving the site. Its X and Esc also go back through history, so no stale entry is left.
+  - Photos and the 360° view sit on a blurred copy of the garment photo (Narek's `card` technique), so the pane takes the photo's own backdrop colour instead of framing it like a picture in a box. On phones the full-page photo uses the pane's full height, with the controls on top as on the 360° view.
+  - Every 360° view calls Micrio's `destroy()` when it closes. Otherwise its WebGL context stays alive until garbage collection, and after about eight garments Chrome drops the oldest context, which is the map's (it shows a sad face).
 - **Done when:** a garment with a model can be rotated and zoomed, one without a model shows its photo, and the map stays usable while the panel is open.
 
 ### F5. Timeline (M0)

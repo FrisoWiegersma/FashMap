@@ -94,7 +94,7 @@ function Hint({ children }: { children: string }) {
   )
 }
 
-type MicrioElement = HTMLElement & { $current?: { state: { marker: { set: (m?: string) => void }; $marker?: { id: string } } } }
+type MicrioElement = HTMLElement & { $current?: { state: { marker: { set: (m?: string) => void }; $marker?: { id: string } } }; destroy?: () => void }
 
 /**
  * A Modemuze 360° object: photos taken all around the garment, turned by dragging. The Micrio viewer loads on first
@@ -110,6 +110,24 @@ function SpinView({ id, garment, story, onStory }: { id: string; garment: Garmen
   useEffect(() => {
     onStoryRef.current = onStory
   })
+
+  // Micrio keeps its WebGL context after its element leaves the page, until garbage collection. Chrome drops the
+  // page's oldest context once there are too many, and that is the map's: after about eight garments it turned into a
+  // sad face. So free it when the view closes. The timeout skips StrictMode's practice unmount, where the element stays.
+  useEffect(() => {
+    const el = ref.current
+    return () => {
+      setTimeout(() => {
+        if (el && !el.isConnected) {
+          try {
+            el.destroy?.() // not in Micrio's types, but it is what releases the context
+          } catch {
+            // already torn down
+          }
+        }
+      })
+    }
+  }, [])
 
   useEffect(() => {
     if (state !== 'ready') return
@@ -181,10 +199,12 @@ function SpinView({ id, garment, story, onStory }: { id: string; garment: Garmen
   if (state === 'error') return <Fallback garment={garment} what="360° view" />
 
   return (
-    <div className="relative size-full">
+    <div className="relative size-full overflow-hidden">
+      {/* Micrio's canvas is transparent around the spin, so the same blurred photo backdrop as the photo pane shows through. */}
+      {garment.image && <img src={assetUrl(garment.image)} alt="" aria-hidden className="absolute inset-0 size-full scale-110 object-cover blur-2xl" />}
       {/* lang="nl": Micrio loads no points for a language without data, and Modemuze writes them in Dutch only.
           Visitors never see this text: Micrio's popup is hidden and FashMap shows the English translation instead. */}
-      <micr-io ref={ref} id={id} lang="nl" data-minimap="false" data-logo="false" style={{ display: 'block', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
+      <micr-io ref={ref} id={id} lang="nl" data-minimap="false" data-logo="false" style={{ display: 'block', position: 'relative', width: '100%', height: '100%', opacity: state === 'ready' ? 1 : 0, transition: 'opacity .5s ease-out' }} />
       <AnimatePresence>{state === 'loading' && <Loading label="Loading 360° view" />}</AnimatePresence>
       <AnimatePresence>{state === 'ready' && !touched && <Hint>Drag to turn, tap a point for its story</Hint>}</AnimatePresence>
     </div>

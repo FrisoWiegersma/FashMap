@@ -67,19 +67,35 @@ function Explorer() {
   const openGarment = (id: string) => {
     if (id !== garmentId) log('garment_open', { garment: id, from: view === 'map' ? 'list' : view })
     setGarmentId(id)
+    // On a phone the panel covers the map and showed what the full page shows, so skip it and open the page.
+    if (!isDesktop()) openFull(null, id)
   }
   const closeGarment = () => {
     if (garmentId) log('garment_close', { garment: garmentId })
     setGarmentId(null)
   }
-  const openFull = (story: string | null = null) => {
-    log('full_open', { garment: garmentId, story })
+  // The full page is a history entry, so the back button or a phone's back swipe closes it instead of leaving the
+  // site. Its own close (X, Esc) goes back through history as well, so the entry never lingers; `popstate` closes it.
+  const openFull = (story: string | null = null, id = garmentId) => {
+    log('full_open', { garment: id, story })
     setFull({ story })
+    history.pushState({ fashmapFull: true }, '')
   }
-  const closeFull = useCallback(() => {
-    log('full_close')
-    setFull(null)
-  }, [])
+  const closeFull = useCallback(() => history.back(), [])
+  useEffect(() => {
+    const onPop = () => {
+      if (!full) return
+      log('full_close')
+      setFull(null)
+      // A phone opened the page instead of the panel, so closing it closes the garment as well.
+      if (!isDesktop() && garmentId) {
+        log('garment_close', { garment: garmentId })
+        setGarmentId(null)
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  })
   const changeFilters = (f: FilterState) => {
     setFilters(f)
     log('filter_change', f)
@@ -103,7 +119,6 @@ function Explorer() {
     const map = mapRef.current
     map?.flyTo({ center: [g.lng, g.lat], zoom: Math.max(map.getZoom(), 10), offset: [isDesktop() ? -PANEL_SPACE / 2 : 0, 60], duration: 1400, essential: true })
   }
-
   // The grid stays text-only about place; the map and the timeline link a garment's place to the map.
   const onShowPlace =
     view === 'grid'
@@ -112,6 +127,10 @@ function Explorer() {
           if (view === 'timeline') changeView('map')
           showPlace(g)
         }
+  const showPlaceFromFull = (g: Garment) => {
+    closeFull()
+    onShowPlace?.(g) // on a phone this also closes the garment
+  }
 
   return (
     <div className="relative h-svh overflow-hidden bg-background">
@@ -201,22 +220,25 @@ function Explorer() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {garment && (
-            <ObjectPanel
-              key="panel"
-              garment={garment}
-              show3d={show3d}
-              onClose={closeGarment}
-              onShowPlace={onShowPlace}
-              onOpenFull={openFull}
-            />
+          {/* Not behind a phone's full page: it would load a second 360° view nobody sees. */}
+          {garment && !(full && !isDesktop()) && (
+            <ObjectPanel key="panel" garment={garment} show3d={show3d} onClose={closeGarment} onShowPlace={onShowPlace} onOpenFull={openFull} />
           )}
         </AnimatePresence>
       </main>
       </div>
 
       <AnimatePresence>
-        {full && garment && <CompareView key="full" garment={garment} show3d={show3d} initialStory={full.story} onClose={closeFull} />}
+        {full && garment && (
+          <CompareView
+            key="full"
+            garment={garment}
+            show3d={show3d}
+            initialStory={full.story}
+            onClose={closeFull}
+            onShowPlace={view === 'grid' ? undefined : showPlaceFromFull}
+          />
+        )}
       </AnimatePresence>
     </div>
   )
