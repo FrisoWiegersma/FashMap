@@ -91,6 +91,17 @@ export function byCentury(garments: Garment[]) {
   return groups
 }
 
+/** A shared timeline junction means the same museum date range, rather than a possible overlap. */
+export function byDate(garments: Garment[]) {
+  const groups: { start: number; end: number; garments: Garment[] }[] = []
+  for (const g of [...garments].sort((a, b) => a.start - b.start || a.end - b.end)) {
+    const last = groups.at(-1)
+    if (last?.start === g.start && last.end === g.end) last.garments.push(g)
+    else groups.push({ start: g.start, end: g.end, garments: [g] })
+  }
+  return groups
+}
+
 export function groupByPlace(garments: Garment[], period: Period): Place[] {
   const byName = new Map<string, Place>()
   for (const g of garments) {

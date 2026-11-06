@@ -1,5 +1,5 @@
 // Run with `npm run check`. Throws on the first failing assertion.
-import { applyFilters, byCentury, clusterByPixels, groupByPlace, histogram, inPeriod, countryName, mercator, options, shiftWindow, snapToEnd, type Garment } from './data.ts'
+import { applyFilters, byCentury, byDate, clusterByPixels, groupByPlace, histogram, inPeriod, countryName, mercator, options, shiftWindow, snapToEnd, type Garment } from './data.ts'
 
 function check(ok: boolean, msg: string) {
   if (!ok) throw new Error(`check failed: ${msg}`)
@@ -45,6 +45,11 @@ check(bins.length === 4 && bins.map((b) => b.count).join() === '0,1,1,0', 'histo
 const cs = byCentury([g('A', 1950, 1960), g('B', 1899, 1910), g('C', 1800, 1850)])
 check(cs.map((c) => `${c.century}:${c.garments.length}`).join() === '1800:2,1900:1', 'century groups')
 check(cs[0].garments[0].start === 1800, 'sorted by start')
+
+// Timeline junctions join matching dates; overlapping ranges and different end years remain separate.
+const dates = byDate([g('A', 1967, 1967), g('B', 1950, 1970), g('C', 1967, 1967), g('D', 1950, 1960)])
+check(dates.map((d) => `${d.start}:${d.end}:${d.garments.length}`).join() === '1950:1960:1,1950:1970:1,1967:1967:2', 'shared date junctions, sorted by start and end')
+check(byDate([]).length === 0 && dates.reduce((n, d) => n + d.garments.length, 0) === 4, 'date groups keep every garment and handle an empty collection')
 
 // Play through time: the window keeps its width, moves in whole years and stops exactly at the end.
 check(shiftWindow([1500, 1550], 12.7, 2026).join() === '1512,1562', 'play moves whole years')

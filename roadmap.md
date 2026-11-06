@@ -158,7 +158,7 @@ Each feature lists what it does, which components it uses, the details, and when
   - "Open full page" shows the 360° view, the photos and the stories at full size. From 1024 px they are three columns. Below that, one media area stays at the top, with a 360°/Photos switch and the close button on it, and only the text underneath scrolls. That way a point on the spin and its story are on screen together, and opening a story switches back to the 360° view.
   - On phones (under 768 px) a tap opens the full page directly and skips the panel. There the panel covered the map and showed the same things. Closing the page closes the garment, and its place link goes back to the map.
   - The full page is a browser history entry (`pushState`), so Back or a phone's back swipe closes it instead of leaving the site. Its X and Esc also go back through history, so no stale entry is left.
-  - Photos and the 360° view sit on a blurred copy of the garment photo (Narek's `card` technique), so the pane takes the photo's own backdrop colour instead of framing it like a picture in a box. On phones the full-page photo uses the pane's full height, with the controls on top as on the 360° view.
+  - Photos and the 360° view sit on a blurred copy of the garment photo (Narek's `card` technique), so the pane takes the photo's own backdrop colour instead of framing it like a picture in a box. On phones the full-page photo uses the pane's full height, with the controls on top as on the 360° view. An expanded story also shows its images inline below its text on narrow screens; tapping one opens that image in the existing photo pane, where it can be enlarged and zoomed.
   - Every 360° view calls Micrio's `destroy()` when it closes. Otherwise its WebGL context stays alive until garbage collection, and after about eight garments Chrome drops the oldest context, which is the map's (it shows a sad face).
 - **Done when:** a garment with a model can be rotated and zoomed, one without a model shows its photo, and the map stays usable while the panel is open.
 
@@ -264,13 +264,13 @@ Each feature lists what it does, which components it uses, the details, and when
 
 ### F13. Timeline view (outside eval mode)
 
-- **What:** a third view next to Map and Grid: every garment that passes the filters, oldest first, on one horizontal rail grouped by century. It answers "when" the way the map answers "where". Suggested by a test user (Friso's mother).
-- **Components:** none from a registry. Neither Watermelon nor Kokonut has a timeline. Kokonut Momentum Rail (`carousel-cards`) was ruled out because its cover-flow depth and parallax bend the axis and add motion nobody asked for. It's a native `overflow-x` rail with CSS `sticky` century labels, and the third tab goes on the existing Watermelon `continuous-tabs`. `byCentury` in `src/lib/data.ts` does the grouping.
+- **What:** a third view next to Map and Grid: every garment that passes the filters, oldest first, in a carousel of museum date groups. It answers "when" the way the map answers "where". Suggested by a test user (Friso's mother).
+- **Components:** Kokonut Momentum Rail (`carousel-cards`), installed with the shadcn CLI and adapted in place. Its mouse flick, spring snapping, native touch scrolling and keyboard navigation are retained; travel examples, favourites and cover-flow effects are removed. The shared SVG date junctions use the installed Motion library. The third tab uses the existing Watermelon `continuous-tabs`. `byDate` and `byCentury` in `src/lib/data.ts` supply the groups and century shortcuts.
 - **Details:**
   - Ordered, not to scale: most garments date from after 1850, so a true axis would be mostly empty space with a pile-up at the end.
-  - Each card shows the year range (Newsreader) on a thin axis line with a dot, then the photo, title and place. The selected card has a cobalt ring, year and dot.
-  - Century chips with counts jump to a century. The current century's label sticks to the left edge.
-  - A vertical mouse wheel scrolls the rail sideways. Jumps are smooth unless reduced motion is on.
+  - Garments with the same start and end years share one date label and SVG junction, branching to their photos. Possible overlaps between different museum date ranges are not grouped. The centred date group has a cobalt junction; the selected garment has a cobalt photo ring. Each photo keeps its title and place.
+  - The carousel works horizontally on phones too, with the whole date group fitting the available width. There are no sticky century headings over scrolling photos. Tapping a garment opens its existing full page.
+  - Century chips with counts jump to the first date in that century; the active century follows the centred group. Previous/Next controls and an announced date counter supplement swipe, wheel, drag, Arrow keys, Home and End. Reduced motion makes the spring and SVG response immediate.
   - It follows the type and museum filters, not the period slider, because the rail is itself the time axis.
   - The open garment's card scrolls clear of the panel. "Place" in the panel switches to the map and flies there.
   - Hidden in eval mode: `?c=map|grid` hides the toggle, so the study conditions don't change.

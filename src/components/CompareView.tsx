@@ -190,7 +190,19 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
                   <p className="text-[13px] text-muted-foreground">Stories from Modemuze, translated from Dutch. Each one belongs to a point on the 360° view.</p>
                   <ul className="mt-3 -mx-2">
                     {stories.map((s) => (
-                      <StoryItem key={s.id} story={s} open={s.id === active?.id} onToggle={() => openStory(s.id === active?.id ? null : s.id)} />
+                      <StoryItem
+                        key={s.id}
+                        story={s}
+                        open={s.id === active?.id}
+                        onToggle={() => openStory(s.id === active?.id ? null : s.id)}
+                        onImage={(src) => {
+                          const index = photos.findIndex((p) => p.src === src)
+                          if (index < 0) return
+                          setPhoto(index)
+                          setOnPhone('photo')
+                          log('photo_switch', { garment: garment.id, photo: index })
+                        }}
+                      />
                     ))}
                   </ul>
                 </motion.div>
@@ -221,7 +233,7 @@ function CloseButton({ onClose, className }: { onClose: () => void; className: s
   )
 }
 
-function StoryItem({ story, open, onToggle }: { story: Story; open: boolean; onToggle: () => void }) {
+function StoryItem({ story, open, onToggle, onImage }: { story: Story; open: boolean; onToggle: () => void; onImage: (src: string) => void }) {
   const ref = useRef<HTMLLIElement>(null)
   // A point tapped on the spin opens its story here; bring it into view.
   // On a phone the text area is short, so put the story's title at its top and let the text unfold below.
@@ -245,6 +257,18 @@ function StoryItem({ story, open, onToggle }: { story: Story; open: boolean; onT
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: EASE }} className="overflow-hidden">
             <div lang={story.lang} className="px-2 pb-4 pl-[30px]">
               <RichText html={story.body} className="space-y-3 text-[15px] leading-relaxed text-foreground/85 [&_strong]:font-medium [&_strong]:text-foreground" />
+              {story.images.length > 0 && (
+                <div className="mt-4 space-y-4 lg:hidden">
+                  {story.images.map((image) => (
+                    <figure key={image.src}>
+                      <button type="button" onClick={() => onImage(image.src)} aria-label={`View story photo: ${image.title || story.title}`} className="block w-full overflow-hidden rounded-xl bg-white ring-1 ring-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                        <img src={image.src} alt={image.title || story.title} loading="lazy" className="max-h-[36svh] w-full object-contain" />
+                      </button>
+                      {image.title && <figcaption className="mt-2 text-xs leading-relaxed text-muted-foreground">{image.title}</figcaption>}
+                    </figure>
+                  ))}
+                </div>
+              )}
               {story.author && <p className="mt-3 text-xs text-muted-foreground">By {story.author}</p>}
             </div>
           </motion.div>

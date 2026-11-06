@@ -1,30 +1,72 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { DateSpan } from '@/components/DateSpan'
 import { GarmentImage } from '@/components/GarmentImage'
-import { byCentury, yearRange, type Garment } from '@/lib/data'
+import CarouselCards, { type CarouselHandle } from '@/components/kokonutui/carousel-cards'
+import { byCentury, byDate, yearRange, type Garment } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 type Props = { garments: Garment[]; selectedId?: string; onSelect: (id: string) => void; panelOpen: boolean; onClearFilters?: () => void }
 
-const sectionId = (century: number) => `fm-century-${century}`
+function Junction({ count, active, markerId, reducedMotion }: { count: number; active: boolean; markerId: string; reducedMotion: boolean }) {
+  return (
+    <div aria-hidden className="relative mt-2 h-10">
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" fill="none" className="absolute -left-2 h-full w-[calc(100%+1rem)] overflow-visible">
+        <path d="M0 10H100" stroke="currentColor" vectorEffect="non-scaling-stroke" className="text-zinc-200" />
+        {Array.from({ length: count }, (_, i) => {
+          const x = ((i + 0.5) / count) * 100
+          const bend = x < 50 ? x + 4 : x > 50 ? x - 4 : x
+          const branch = `M50 10H${bend}Q${x} 10 ${x} 23V40`
+          return (
+            <g key={i}>
+              <path d={branch} stroke="currentColor" vectorEffect="non-scaling-stroke" className="text-zinc-200" />
+              <motion.path
+                initial={false}
+                animate={{ d: active ? branch : 'M50 10H50Q50 10 50 10V10', opacity: active ? 1 : 0 }}
+                transition={{ duration: reducedMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                className="text-primary"
+              />
+            </g>
+          )
+        })}
+      </svg>
+      <span className="absolute top-2.5 left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <span className="block size-1.5 rounded-full bg-zinc-400 ring-4 ring-background" />
+        {active && (
+          <motion.span
+            layoutId={markerId}
+            initial={false}
+            transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
+            className="absolute -inset-0.5 rounded-full border-2 border-background bg-primary ring-1 ring-primary/30"
+          />
+        )}
+      </span>
+    </div>
+  )
+}
 
-// The garments in date order, grouped by century (roadmap F13). From 640 px it is one horizontal rail with the axis
-// along the top; on a phone it runs down the page with the axis on the left, because phones scroll vertically.
-// ponytail: ordered, not to scale. Most garments are from after 1850, so a true axis would be mostly empty space.
+// One carousel stop per museum date range. Matching dates share a junction and branch to their photos.
 export function TimelineView({ garments, selectedId, onSelect, panelOpen, onClearFilters }: Props) {
+  const dates = useMemo(() => byDate(garments), [garments])
   const centuries = useMemo(() => byCentury(garments), [garments])
-  const railRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<CarouselHandle>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const active = dates[activeIndex] ?? dates[0]
+  const reducedMotion = !!useReducedMotion()
+  const markerId = useId()
 
-  // Keep the open garment's card in view, next to the panel rather than under it.
   useEffect(() => {
-    if (selectedId) railRef.current?.querySelector(`[data-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
-  }, [selectedId])
-
-  const jump = (century: number) => document.getElementById(sectionId(century))?.scrollIntoView({ inline: 'start', block: 'start' })
+    const index = dates.findIndex((d) => d.garments.some((g) => g.id === selectedId))
+    if (index >= 0) railRef.current?.goTo(index)
+  }, [selectedId, dates])
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-background pt-24">
-      <div className={cn('flex flex-wrap items-center gap-x-6 gap-y-3 px-4 transition-[padding] duration-300 ease-out sm:px-8', panelOpen && 'md:pr-(--panel-space)')}>
+    <div className={cn('absolute inset-0 flex flex-col overflow-y-auto bg-background pt-24 transition-[padding] duration-300 ease-out motion-reduce:transition-none', panelOpen && 'md:pr-(--panel-space)')}>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 px-4 sm:px-8">
         <p className="text-sm text-muted-foreground" aria-live="polite">
           <span className="font-medium text-foreground tabular-nums">{garments.length}</span> {garments.length === 1 ? 'garment' : 'garments'}, oldest first
         </p>
@@ -34,128 +76,76 @@ export function TimelineView({ garments, selectedId, onSelect, panelOpen, onClea
               <button
                 key={century}
                 type="button"
-                onClick={() => jump(century)}
-                className="flex shrink-0 items-baseline gap-1.5 rounded-full bg-white px-3 py-1 ring-1 ring-black/5 transition-[background-color,scale] hover:bg-zinc-50 active:scale-95 focus-visible:outline-2 focus-visible:outline-primary"
+                aria-pressed={!!active && Math.floor(active.start / 100) * 100 === century}
+                onClick={() => railRef.current?.goTo(dates.findIndex((d) => Math.floor(d.start / 100) * 100 === century))}
+                className="flex shrink-0 items-baseline gap-1.5 rounded-full bg-white px-3 py-1.5 ring-1 ring-black/5 transition-[background-color,color,scale] hover:bg-zinc-100 active:scale-95 aria-pressed:bg-foreground aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
               >
-                <span className="font-heading text-[15px] text-foreground tabular-nums">{century}s</span>
-                <span className="text-xs text-muted-foreground tabular-nums">{garments.length}</span>
+                <span className="font-heading text-[15px] tabular-nums">{century}s</span>
+                <span className="text-xs tabular-nums opacity-60">{garments.length}</span>
               </button>
             ))}
           </nav>
         )}
       </div>
 
-      {garments.length === 0 ? (
+      {dates.length === 0 ? (
         <div className="mx-auto mt-16 max-w-sm px-4 text-center">
           <p className="font-heading text-2xl text-foreground">No garments match</p>
           <p className="mt-2 text-sm text-muted-foreground">Remove a filter to see more.</p>
           {onClearFilters && (
-            <button
-              type="button"
-              onClick={onClearFilters}
-              className="mt-5 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-white transition-[scale,background-color] hover:bg-zinc-800 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
+            <button type="button" onClick={onClearFilters} className="mt-5 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-white transition-[scale,background-color] hover:bg-zinc-800 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               Clear filters
             </button>
           )}
         </div>
       ) : (
-        <div
-          ref={railRef}
-          aria-label="Garments by date"
-          role="region"
-          // A mouse wheel only scrolls vertically, so on the horizontal rail turn it sideways. Trackpads and touch already scroll sideways.
-          onWheel={(e) => {
-            const el = e.currentTarget
-            if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) el.scrollBy({ left: e.deltaY * (e.deltaMode === 1 ? 40 : 1), behavior: 'instant' })
-          }}
-          className={cn(
-            'mt-3 min-h-0 flex-1 overflow-y-auto scroll-smooth motion-reduce:scroll-auto sm:mt-0 sm:flex sm:flex-col sm:justify-center sm:overflow-x-auto sm:overflow-y-hidden sm:scroll-pl-8',
-            panelOpen && 'md:scroll-pr-(--panel-space)',
-          )}
-        >
-          <div className="flex flex-col gap-6 px-4 pb-10 sm:w-max sm:flex-row sm:gap-5 sm:px-8 sm:pb-6">
-            {centuries.map(({ century, garments }) => (
-              <section key={century} id={sectionId(century)} aria-labelledby={`${sectionId(century)}-h`} className="shrink-0">
-                {/* Sticks to the top (phone) or the left edge (wider) while its century scrolls past. */}
-                <header className="sticky top-0 left-8 z-10 flex items-baseline gap-2 bg-background/90 py-2.5 backdrop-blur-md sm:w-fit sm:bg-transparent sm:py-0 sm:backdrop-blur-none">
-                  <h2 id={`${sectionId(century)}-h`} className="font-heading text-[26px] leading-none tracking-[-0.01em] text-foreground tabular-nums sm:text-[30px]">
-                    {century}s
-                  </h2>
-                  <span className="text-[13px] text-muted-foreground">
-                    {garments.length} {garments.length === 1 ? 'garment' : 'garments'}
-                  </span>
-                </header>
-                <ol className="mt-2 flex flex-col gap-4 sm:mt-5 sm:flex-row sm:gap-5">
-                  {garments.map((g) => {
-                    const selected = g.id === selectedId
-                    const dot = (className: string) => (
-                      <span
-                        className={cn(
-                          'absolute top-1/2 rounded-full ring-4 ring-background transition-[background-color] duration-200',
-                          selected ? 'size-2.5 bg-primary' : 'size-2 bg-zinc-400 group-hover:bg-zinc-600',
-                          className,
-                        )}
-                      />
-                    )
-                    return (
-                      <li key={g.id} data-id={g.id} className="sm:w-[min(260px,30svh,42vw)] sm:shrink-0">
-                        {/* Phone: photo left, text right. Wider: one column, where `sm:contents` and `order` put the year and the axis above the photo. */}
-                        <button
-                          type="button"
-                          onClick={() => onSelect(g.id)}
-                          aria-current={selected || undefined}
-                          className="group relative flex w-full items-center gap-4 pl-7 text-left outline-none sm:flex-col sm:items-stretch sm:gap-0 sm:pl-0"
-                        >
-                          {/* Phone axis: down the left edge, through the gap to the next card. */}
-                          <span aria-hidden className="absolute top-0 -bottom-4 left-[4.5px] w-px bg-zinc-200 sm:hidden" />
-                          {dot('left-[5px] -translate-x-1/2 -translate-y-1/2 sm:hidden')}
-                          {/* Wider axis: along the top, half a gap past each side so the line runs unbroken. */}
-                          <span aria-hidden className="relative my-3 hidden h-2.5 sm:order-[-1] sm:block">
-                            <span className="absolute top-1/2 -right-2.5 -left-2.5 h-px bg-zinc-200" />
-                            {dot('left-0 -translate-y-1/2')}
-                          </span>
-                          {/* Phone: the whole photo at its own shape in a fixed slot, framed tight, so rows line up without blurred fill. */}
-                          <span className="flex h-32 w-24 shrink-0 items-center justify-center sm:hidden">
-                            <GarmentImage
-                              garment={g}
-                              size="fit"
-                              className={cn(
-                                'rounded-xl ring-1 ring-black/5 transition-[box-shadow,scale] duration-200 group-focus-visible:ring-2 group-focus-visible:ring-primary group-active:scale-[0.98]',
-                                selected && 'ring-2 ring-primary',
-                              )}
-                            />
-                          </span>
-                          {/* Wider: equal 4:5 cards along the rail, like the grid. */}
-                          <span
-                            className={cn(
-                              'block aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 transition-[box-shadow,scale] duration-200 group-focus-visible:ring-2 group-focus-visible:ring-primary group-active:scale-[0.98] max-sm:hidden',
-                              selected && 'ring-2 ring-primary',
-                            )}
-                          >
-                            <span className="block size-full transition-transform duration-700 ease-out group-hover:scale-[1.04]">
-                              <GarmentImage garment={g} size="card" />
-                            </span>
-                          </span>
-                          <span className="flex min-w-0 flex-col sm:contents">
-                            <span className="flex items-center gap-2.5 sm:order-[-2]">
-                              <span className={cn('font-heading text-[15px] leading-none tabular-nums sm:text-[17px]', selected ? 'text-primary' : 'text-foreground')}>{yearRange(g)}</span>
-                              <DateSpan garment={g} />
-                            </span>
-                            <span className="mt-2 line-clamp-2 block font-heading text-[17px] leading-snug text-foreground decoration-primary/30 underline-offset-4 group-hover:underline sm:mt-3">
-                              {g.title}
-                            </span>
-                            <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">{g.place}</span>
-                          </span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ol>
-              </section>
-            ))}
-          </div>
-        </div>
+        <CarouselCards ref={railRef} key={dates.map((d) => `${d.start}:${d.end}:${d.garments.length}`).join('|')} count={dates.length} onActiveChange={setActiveIndex}>
+          {dates.map((date) => {
+            const current = date === active
+            return (
+              <li
+                key={`${date.start}:${date.end}`}
+                data-date={`${date.start}:${date.end}`}
+                aria-label={`${yearRange(date.garments[0])}, ${date.garments.length} ${date.garments.length === 1 ? 'garment' : 'garments'}`}
+                aria-current={current || undefined}
+                className="relative shrink-0 snap-center [--photo-card:min(15rem,30svh)]"
+                style={{ width: `min(calc(var(--photo-card) * ${date.garments.length} + 1rem * ${date.garments.length - 1}), calc(100cqw - 3rem))` }}
+              >
+                <div className="flex h-14 flex-col items-center justify-end gap-1">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="font-heading text-[28px] leading-none text-foreground tabular-nums sm:text-[34px]">{yearRange(date.garments[0])}</h2>
+                    <DateSpan garment={date.garments[0]} />
+                  </div>
+                  <p className="h-4 text-xs text-muted-foreground">{date.garments.length > 1 ? `${date.garments.length} garments, same museum date` : '\u00a0'}</p>
+                </div>
+                <Junction count={date.garments.length} active={current} markerId={markerId} reducedMotion={reducedMotion} />
+                <ul className="flex gap-4">
+                  {date.garments.map((g) => (
+                    <li key={g.id} data-id={g.id} className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        data-rail-link=""
+                        onClick={() => onSelect(g.id)}
+                        aria-label={`${g.title}, ${yearRange(g)}, ${g.place}`}
+                        aria-current={g.id === selectedId || undefined}
+                        className="group block w-full rounded-xl text-left outline-none"
+                      >
+                        <span className={cn(
+                          'block h-[32svh] overflow-hidden rounded-xl bg-white ring-1 ring-black/5 transition-[box-shadow,opacity] duration-300 group-focus-visible:ring-2 group-focus-visible:ring-primary sm:h-[min(36svh,360px)] motion-reduce:transition-none',
+                          g.id === selectedId && 'ring-2 ring-primary',
+                        )}>
+                          <GarmentImage garment={g} size="card" />
+                        </span>
+                        <span className="mt-3 line-clamp-2 block min-h-[2.75em] font-heading text-[15px] leading-snug text-foreground decoration-primary/30 underline-offset-4 group-hover:underline sm:text-[18px]">{g.title}</span>
+                        <span className="mt-0.5 block truncate text-[12px] text-muted-foreground sm:text-[13px]">{g.place}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            )
+          })}
+        </CarouselCards>
       )}
     </div>
   )
