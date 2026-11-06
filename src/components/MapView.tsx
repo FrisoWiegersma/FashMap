@@ -2,10 +2,11 @@ import * as maplibregl from 'maplibre-gl'
 import type { StyleSpecification } from 'maplibre-gl'
 import maplibreWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import NumberFlow from '@number-flow/react'
-import { Maximize, Minus, Plus, X } from 'lucide-react'
-import { motion } from 'motion/react'
+import { Info, Maximize, Minus, Plus, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'react-map-gl/maplibre'
+import { DateSpan } from '@/components/DateSpan'
 import { GarmentImage } from '@/components/GarmentImage'
 import { clusterByPixels, countryName, dotRadius, inPeriod, mercator, type Garment, type Period, type Place } from '@/lib/data'
 import { cn, PANEL_SPACE } from '@/lib/utils'
@@ -16,6 +17,15 @@ maplibregl.setWorkerUrl(maplibreWorker)
 
 const TIMELINE_SPACE = 230
 const HEADER_SPACE = 80
+
+/** How a place dot looks. The map key draws the same classes, so it can't drift from the map. */
+const DOT = {
+  live: 'bg-primary text-white shadow-[0_0_0_2px_#fff,0_4px_14px_-2px_rgb(45_91_255/0.5)]',
+  empty: 'border-[1.5px] border-zinc-400 bg-white/85',
+  halo: 'pointer-events-none absolute -inset-[5px] rounded-full border',
+  haloLive: 'border-primary/40',
+  haloEmpty: 'border-zinc-400/60',
+}
 const isDesktop = () => window.innerWidth >= 768
 const ease = (t: number) => 1 - Math.pow(1 - t, 3)
 
@@ -106,7 +116,7 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
           }}
           onClick={onClosePlace}
         >
-          <AttributionControl position="bottom-right" compact={false} />
+          <AttributionControl position="bottom-right" compact={false} customAttribution='Garments: <a href="https://www.modemuze.nl" target="_blank" rel="noreferrer">Modemuze</a>' />
           <Dots places={places} selectedPlace={selectedPlace} onSelectPlace={onSelectPlace} />
           <KeepInView garment={selectedGarment} />
           {place && (
@@ -234,11 +244,11 @@ function Dot({ members, intro, splitFrom, selected, onActivate }: DotProps) {
           transition={{ type: 'spring', stiffness: 260, damping: 22 }}
           className={cn(
             'peer relative grid cursor-pointer place-items-center rounded-full transition-[background-color,border-color,box-shadow,scale] duration-200 ease-out outline-none hover:scale-[1.08] active:scale-95 focus-visible:ring-[3px] focus-visible:ring-foreground',
-            live ? 'bg-primary text-white shadow-[0_0_0_2px_#fff,0_4px_14px_-2px_rgb(45_91_255/0.5)]' : 'border-[1.5px] border-zinc-400 bg-white/85',
+            live ? DOT.live : DOT.empty,
           )}
         >
           {/* A group gets a thin halo, so "several places" reads by shape as well as by the count. */}
-          {isGroup && <span className={cn('pointer-events-none absolute -inset-[5px] rounded-full border', live ? 'border-primary/40' : 'border-zinc-400/60')} />}
+          {isGroup && <span className={cn(DOT.halo, live ? DOT.haloLive : DOT.haloEmpty)} />}
           <span
             className={cn(
               'pointer-events-none absolute rounded-full border-2 border-foreground transition-[opacity,scale] duration-200 ease-out',
@@ -274,7 +284,7 @@ function KeepInView({ garment }: { garment: Garment | null }) {
     if (!garment || !map || !isDesktop()) return
     const p = map.project([garment.lng, garment.lat])
     const { width, height } = map.getContainer().getBoundingClientRect()
-    const right = width - PANEL_SPACE - 40
+    const right = width - PANEL_SPACE - 170 // room for the place list (300 px, centred on the dot), so the panel doesn't cover it
     const bottom = height - TIMELINE_SPACE
     const dx = p.x > right ? p.x - right : p.x < 60 ? p.x - 60 : 0
     const dy = p.y > bottom ? p.y - bottom : 0
@@ -305,26 +315,89 @@ function PopupInView({ panelOpen }: { panelOpen: boolean }) {
 }
 
 function ZoomControls({ mapRef, bounds }: { mapRef: RefObject<MapRef | null>; bounds: Bounds }) {
+  const [showKey, setShowKey] = useState(false)
+  const surface = 'rounded-xl bg-white/90 shadow-float ring-1 ring-black/5 backdrop-blur-md'
   const btn =
     'grid size-10 place-items-center text-foreground transition-colors hover:bg-muted active:bg-zinc-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary [&_svg]:transition-transform active:[&_svg]:scale-90'
+  // ponytail: desktop only, like the zoom buttons. Phones have no room for it and pinch to zoom.
   return (
-    <div className="fm-map-controls absolute right-4 bottom-10 z-[1000] hidden flex-col overflow-hidden rounded-xl bg-white/90 shadow-float ring-1 ring-black/5 backdrop-blur-md md:flex">
-      <button type="button" className={btn} aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn({ duration: 400 })}>
-        <Plus className="size-4" />
-      </button>
-      <button type="button" className={cn(btn, 'border-y border-border')} aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut({ duration: 400 })}>
-        <Minus className="size-4" />
-      </button>
+    <div className="fm-map-controls absolute right-4 bottom-10 z-[1000] hidden flex-col items-end gap-2 md:flex">
+      {/* A disclosure, not a popover: it stays open while you read the map, and the button closes it. */}
+      <AnimatePresence>
+        {showKey && (
+          <motion.div
+            id="fm-map-key"
+            initial={{ opacity: 0, scale: 0.96, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 6 }}
+            transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            style={{ transformOrigin: 'bottom right' }}
+            className="absolute right-0 bottom-full mb-2 w-[260px] rounded-[18px] bg-white/92 p-4 shadow-float ring-1 ring-black/5 backdrop-blur-md"
+          >
+            <h2 className="text-[13px] font-medium text-foreground">Map key</h2>
+            <ul className="mt-3 space-y-2.5 text-[13px] text-muted-foreground">
+              <KeyRow count={1}>1 garment</KeyRow>
+              <KeyRow count={3}>3 garments, bigger is more</KeyRow>
+              <KeyRow count={0}>None in this period</KeyRow>
+              <KeyRow count={1} group>
+                Nearby places, click to zoom
+              </KeyRow>
+            </ul>
+            <p className="mt-3.5 border-t border-black/5 pt-3 text-xs leading-relaxed text-muted-foreground">
+              Garments from Dutch and Belgian museums, via{' '}
+              <a href="https://www.modemuze.nl" target="_blank" rel="noreferrer" className="font-medium text-foreground underline decoration-black/20 underline-offset-2 hover:decoration-primary">
+                Modemuze
+              </a>
+              .
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <button
         type="button"
-        className={btn}
-        aria-label="Show all places"
-        title="Show all places"
-        onClick={() => mapRef.current?.fitBounds(bounds, { padding: fitPadding(), duration: 1100, easing: ease })}
+        className={cn(surface, btn, showKey && 'text-primary')}
+        aria-label="Map key"
+        title="Map key"
+        aria-expanded={showKey}
+        aria-controls="fm-map-key"
+        onClick={() => setShowKey(!showKey)}
       >
-        <Maximize className="size-4" />
+        <Info className="size-4" />
       </button>
+      <div className={cn(surface, 'flex flex-col overflow-hidden')}>
+        <button type="button" className={btn} aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn({ duration: 400 })}>
+          <Plus className="size-4" />
+        </button>
+        <button type="button" className={cn(btn, 'border-y border-border')} aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut({ duration: 400 })}>
+          <Minus className="size-4" />
+        </button>
+        <button
+          type="button"
+          className={btn}
+          aria-label="Show all places"
+          title="Show all places"
+          onClick={() => mapRef.current?.fitBounds(bounds, { padding: fitPadding(), duration: 1100, easing: ease })}
+        >
+          <Maximize className="size-4" />
+        </button>
+      </div>
     </div>
+  )
+}
+
+/** One row of the map key: a dot drawn exactly as the map draws it for `count` garments. */
+function KeyRow({ count, group, children }: { count: number; group?: boolean; children: string }) {
+  const size = dotRadius(count) * 2
+  return (
+    <li className="flex items-center gap-3">
+      <span aria-hidden className="grid size-7 shrink-0 place-items-center">
+        <span className={cn('relative grid place-items-center rounded-full', count ? DOT.live : DOT.empty)} style={{ width: size, height: size }}>
+          {group && <span className={cn(DOT.halo, DOT.haloLive)} />}
+          {count > 1 && <span className="font-heading text-[13px] leading-none font-medium tabular-nums">{count}</span>}
+        </span>
+      </span>
+      {children}
+    </li>
   )
 }
 
@@ -332,12 +405,15 @@ type PlaceListProps = { place: Place; period: Period; selectedId?: string; onSel
 
 function PlaceList({ place, period, selectedId, onSelect, onClose }: PlaceListProps) {
   const n = place.garments.length
+  const first = place.garments[0].start
+  const last = Math.max(...place.garments.map((g) => g.end))
   return (
     <div className="w-[300px]">
       <div className="relative border-b border-border px-5 pt-4 pr-12 pb-3">
         <h2 className="font-heading text-[22px] leading-tight text-foreground">{place.name}</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {countryName(place.country)}, {n} {n === 1 ? 'garment' : 'garments'}
+          {n > 1 && `, ${first === last ? first : `${first}–${last}`}`}
           {place.inPeriod < n && `, ${place.inPeriod} in this period`}
         </p>
         <button
@@ -371,9 +447,12 @@ function PlaceList({ place, period, selectedId, onSelect, onClose }: PlaceListPr
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className={cn('block truncate text-sm font-medium text-foreground', !live && 'text-foreground/50')}>{g.title}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {g.dateLabel}
-                    {!live && ', outside period'}
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">
+                      {g.dateLabel}
+                      {!live && ', outside period'}
+                    </span>
+                    <DateSpan garment={g} />
                   </span>
                 </span>
                 <span className={cn('mr-1 size-1.5 shrink-0 rounded-full bg-primary transition-[opacity,scale] duration-200', active ? 'scale-100 opacity-100' : 'scale-0 opacity-0')} aria-hidden />

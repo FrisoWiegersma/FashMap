@@ -44,6 +44,15 @@ export const MAX_YEAR = new Date().getFullYear()
 
 export const inPeriod = (g: Garment, [from, to]: Period) => g.start <= to && g.end >= from
 
+/** Where a year sits on the 1500–now axis, in percent. The slider, its bars, the open-garment band and the place strips share it. */
+export const yearPct = (year: number) => ((year - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100
+
+/** "Play through time": the window `start` moved `years` later, in whole years, stopping when it reaches `max`. */
+export function shiftWindow([from, to]: Period, years: number, max = MAX_YEAR): Period {
+  const shift = Math.min(Math.floor(years), max - to)
+  return [from + shift, to + shift]
+}
+
 /** An empty list means "everything" for that filter. */
 export const applyFilters = (garments: Garment[], f: Filters) =>
   garments.filter((g) => (!f.types.length || f.types.includes(g.type)) && (!f.museums.length || f.museums.includes(g.museum)))

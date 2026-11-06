@@ -7,7 +7,7 @@ Team 7 (HCI & IV): Narek Sergeyan, Friso Wiegersma.
 
 ## Status
 
-The first version is built: F1–F6 and F8, plus a light version of F9. Next up: filters (F7), then logging (F10) and eval mode (F11) before Eval 1.
+F1–F13 are built (F9 in its light version). After the HCI/IV review, the map condition gained a map key and data-source credit, the open garment's band on the timeline, a date-precision bar and Play (in F2, F3, F5). Next up: Eval 1 (23–29 Nov).
 
 ## Milestones
 
@@ -134,7 +134,9 @@ Each feature lists what it does, which components it uses, the details, and when
   - The list is sorted by `start`.
   - The list scrolls after about 6 rows. Thumbnails are 48 px with `loading="lazy"`.
   - The header shows the place and country, and the count, for example "12 garments".
-  - Clicking a row sets `selectedGarment` and opens F4. The popup stays open.
+  - Clicking a row sets `selectedGarment` and opens F4. The popup stays open, and the map keeps the dot 170 px clear of the panel so the list isn't covered.
+  - A place with more than one garment adds its span to the header ("Japan, 3 garments, 1920–1989"). A per-place time strip was tried and dropped: next to each row's date and precision bar it said the same thing twice.
+  - **Date precision:** each row's `dateLabel` gets a `DateSpan`: a 40 px track with a cobalt segment as wide as the date range (1 year to 100+ years). Narrow means exact, wide means vague; its label reads "Exact year" or "Dated to a 21-year range". The timeline view (F13) uses it too; the grid baseline doesn't.
 - **Open decision:** a list after the click (recommended) or opening the first garment directly. Confirm with the paper prototype.
 - **Done when:** a place with 10 or more garments shows a scrollable list, and picking a row opens the panel.
 
@@ -169,6 +171,9 @@ Each feature lists what it does, which components it uses, the details, and when
   - Update on `onValueChange` (live), not on release.
   - The step is 5 years, and the default is the full range.
   - A "Reset" link appears once the range has changed.
+  - **Open garment:** with a garment open, a cobalt band spans its years behind the bars and the slider, with its `yearRange` in a pill, so you see where it sits in the period.
+  - **Play:** a round cobalt Play/Pause button on the slider's line, like a media player. It glides the window forward at 25 years a second (1500 to now in about 19 s), one year per tick with the position taken from the clock, and stops at the end. It keeps a narrowed window's width and position, or starts at 1500 with 50 years. Dragging a thumb or Reset stops it. The numerals don't roll while it plays. The rule is `shiftWindow` in `data.ts`, with asserts in `data.check.ts`.
+  - **Map key and source:** an Info button above the zoom buttons opens a map key, drawn with the map's own dot classes and sizes (`DOT` and `dotRadius`): 1 garment, 3 garments, none in this period, nearby places merged. It stays open until the button closes it, so you can read the map with it. Its footer and the map attribution ("Garments: Modemuze") credit the source. Desktop only, like the zoom buttons; a row of it in the timeline card was too busy.
 - **Open decision:** a period range (recommended, because garments are dated as ranges) or a single year with a ±25-year window. Confirm with the paper prototype.
 - **Done when:** dragging a thumb updates the dots with no visible lag, and the slider works with only the keyboard.
 
@@ -231,6 +236,7 @@ Each feature lists what it does, which components it uses, the details, and when
     - `filter_change`
     - `model_interact`, the first rotate or zoom per garment
     - Added with F13 (new values, nothing renamed): `view_change` with `to: 'timeline'`, and `garment_open` with `from: 'timeline'`. They only occur in free sessions (`?p=` without `c`).
+    - `period_play` (new): `{ playing, from, to }` on Play and on Pause or the end. `period_change` still fires once the steps stop.
   - The page `?admin=1` lists the stored logs, offers a JSON download, and can clear them.
   - There is no backend, which fits GitHub Pages. Tasks, answers and the SUS questionnaire go in a Google Form. Time per task comes from the timestamps.
   - Don't rename events once a study has started.
@@ -275,7 +281,7 @@ Each feature lists what it does, which components it uses, the details, and when
 - **Brand:** the user's supplied dress-in-a-map-pin artwork, recoloured to cobalt without redrawing, paired with the Newsreader wordmark. The full name shows from 640 px; on smaller screens Watermelon's Morphing Button reveals it on tap and closes on a second tap, an outside tap or Escape. Header controls wrap when needed. A Watermelon Button 21 links to GitHub; it's hidden below 640 px so the header (with three view tabs) stays on one row on a phone. The symbol supplies the favicon and touch icons; the original reference and transparent PNG master live in `docs/brand/`. These are raster assets, not vectors.
 - **Overview first, details on demand:** the map shows only dots until the user clicks.
 - **Linked views:** one state, so a change shows up everywhere in the same render.
-- **No instructions needed:** visible labels, obvious controls, and an empty state ("No garments in this period").
+- **No instructions needed:** visible labels, obvious controls, an empty state ("No garments in this period"), a map key for the dots on desktop and a source credit in the map attribution (F5).
 - **Colour-blind safe:** one accent hue (cobalt) on neutral greys, and information is never carried by colour alone: size, count labels and the hollow-ring shape carry it too. Check with Chrome DevTools > Rendering > Emulate vision deficiencies.
 - **Accessibility:** keyboard access to every control, visible focus, WCAG AA contrast, `prefers-reduced-motion` respected (the `motion` components support it).
 - **Performance:**

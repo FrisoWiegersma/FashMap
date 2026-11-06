@@ -200,7 +200,7 @@ function Explorer() {
               </motion.div>
             )}
           </AnimatePresence>
-          <Timeline period={period} onChange={setPeriod} garments={filtered} total={garments.length} panelOpen={!!garment} />
+          <Timeline period={period} onChange={setPeriod} garments={filtered} total={garments.length} panelOpen={!!garment} garment={garment} />
         </div>
 
         <AnimatePresence>

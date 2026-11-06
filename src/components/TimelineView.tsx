@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { DateSpan } from '@/components/DateSpan'
 import { GarmentImage } from '@/components/GarmentImage'
 import { byCentury, yearRange, type Garment } from '@/lib/data'
 import { cn } from '@/lib/utils'
@@ -137,8 +138,9 @@ export function TimelineView({ garments, selectedId, onSelect, panelOpen, onClea
                             </span>
                           </span>
                           <span className="flex min-w-0 flex-col sm:contents">
-                            <span className={cn('block font-heading text-[15px] leading-none tabular-nums sm:order-[-2] sm:text-[17px]', selected ? 'text-primary' : 'text-foreground')}>
-                              {yearRange(g)}
+                            <span className="flex items-center gap-2.5 sm:order-[-2]">
+                              <span className={cn('font-heading text-[15px] leading-none tabular-nums sm:text-[17px]', selected ? 'text-primary' : 'text-foreground')}>{yearRange(g)}</span>
+                              <DateSpan garment={g} />
                             </span>
                             <span className="mt-2 line-clamp-2 block font-heading text-[17px] leading-snug text-foreground decoration-primary/30 underline-offset-4 group-hover:underline sm:mt-3">
                               {g.title}
