@@ -26,6 +26,8 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
   const stories = useStories(live ? garment.micrio : null)
   const [story, setStory] = useState<string | null>(initialStory)
   const [tab, setTab] = useState<'object' | 'stories'>(initialStory ? 'stories' : 'object')
+  // Without stories (none, or they failed to load) the switch is hidden, so show the details rather than an empty list.
+  const shownTab = stories.length ? tab : 'object'
   const active = stories.find((s) => s.id === story)
   // One pane can fill the screen: the spin or the photos.
   const [big, setBig] = useState<'live' | 'photo' | null>(null)
@@ -169,7 +171,7 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
                   { id: 'object', label: 'Object' },
                   { id: 'stories', label: `Stories ${stories.length}` },
                 ]}
-                value={tab}
+                value={shownTab}
                 onChange={setTab}
               />
             )}
@@ -177,7 +179,7 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
 
           <div className="flex-1 px-5 pt-4 pb-6 lg:overflow-y-auto lg:px-7 lg:pt-5 lg:pb-7">
             <AnimatePresence initial={false} mode="wait">
-              {tab === 'object' ? (
+              {shownTab === 'object' ? (
                 <motion.div key="object" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                   <Details garment={garment} onShowPlace={onShowPlace} />
                   <p className="mt-6 border-t border-border pt-5 text-[15px] leading-relaxed text-foreground/85">{garment.description}</p>

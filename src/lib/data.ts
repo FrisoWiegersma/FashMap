@@ -47,6 +47,12 @@ export const inPeriod = (g: Garment, [from, to]: Period) => g.start <= to && g.e
 /** Where a year sits on the 1500–now axis, in percent. The slider, its bars, the open-garment band and the place strips share it. */
 export const yearPct = (year: number) => ((year - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100
 
+/**
+ * The slider steps 5 years from 1500, so its last step is 2025, not the current year: without this the right thumb could
+ * never return to "now", Reset stayed up over the full range, and Play stopped at once. A year in the last step is now.
+ */
+export const snapToEnd = (year: number, step: number, max = MAX_YEAR) => (year > max - step ? max : year)
+
 /** "Play through time": the window `start` moved `years` later, in whole years, stopping when it reaches `max`. */
 export function shiftWindow([from, to]: Period, years: number, max = MAX_YEAR): Period {
   const shift = Math.min(Math.floor(years), max - to)
@@ -132,7 +138,13 @@ export function clusterByPixels<T extends { x: number; y: number; count: number 
 }
 
 const regions = new Intl.DisplayNames(['en'], { type: 'region' })
-export const countryName = (code: string) => regions.of(code) ?? code
+export const countryName = (code: string) => {
+  try {
+    return regions.of(code) ?? code
+  } catch {
+    return code // Intl throws on an empty or malformed code
+  }
+}
 
 /** Resolve a data path (relative to public/) or pass an absolute URL through. */
 export const assetUrl = (path: string) => (/^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path}`)

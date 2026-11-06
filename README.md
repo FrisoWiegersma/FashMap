@@ -121,7 +121,7 @@ With Docker Engine and Docker Compose installed, build and start the site:
 docker compose up -d --build
 ```
 
-Open <http://localhost:8080/>. The image builds the app with Node.js and serves only the production files with Nginx. It uses `/` as its base path, so study URLs become `/?p=P07&c=map`, `/?p=P07&c=grid` and `/?admin=1`.
+Open <http://localhost:8080/>. The image builds the app with Node.js and serves only the production files with Nginx (`nginx.conf`: `index.html` is never cached stale, and the map's `.mjs` worker is served as JavaScript). It uses `/` as its base path, so study URLs become `/?p=P07&c=map`, `/?p=P07&c=grid` and `/?admin=1`.
 
 The host port is configurable with `FASHMAP_PORT` and defaults to 8080. It always binds to `127.0.0.1`. For example, use an untracked `.env` file to persist a different port:
 

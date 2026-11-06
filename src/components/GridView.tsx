@@ -10,7 +10,7 @@ type Props = { garments: Garment[]; selectedId?: string; onSelect: (id: string) 
 export function GridView({ garments, selectedId, onSelect, panelOpen, onClearFilters }: Props) {
   return (
     <div className="absolute inset-0 overflow-y-auto bg-background">
-      <div className={cn('mx-auto max-w-[1400px] px-4 pt-24 pb-10 transition-[padding] duration-300 ease-out sm:px-8', panelOpen && 'md:pr-[470px]')}>
+      <div className={cn('mx-auto max-w-[1400px] px-4 pt-24 pb-10 transition-[padding] duration-300 ease-out sm:px-8', panelOpen && 'md:pr-(--panel-space)')}>
         <p className="mb-6 text-sm text-muted-foreground" aria-live="polite">
           <span className="font-medium text-foreground tabular-nums">{garments.length}</span> {garments.length === 1 ? 'garment' : 'garments'}
         </p>

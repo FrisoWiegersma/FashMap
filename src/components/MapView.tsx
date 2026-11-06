@@ -9,7 +9,8 @@ import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'rea
 import { DateSpan } from '@/components/DateSpan'
 import { GarmentImage } from '@/components/GarmentImage'
 import { clusterByPixels, countryName, dotRadius, inPeriod, mercator, type Garment, type Period, type Place } from '@/lib/data'
-import { cn, PANEL_SPACE } from '@/lib/utils'
+import garments from '@/data/garments.json'
+import { cn, isDesktop, PANEL_SPACE } from '@/lib/utils'
 
 // This module is loaded lazily (MapLibre is ~1 MB), so the header and timeline paint first.
 // MapLibre looks for its worker next to its own module, which breaks once Vite bundles it. Point it at the file.
@@ -26,7 +27,6 @@ const DOT = {
   haloLive: 'border-primary/40',
   haloEmpty: 'border-zinc-400/60',
 }
-const isDesktop = () => window.innerWidth >= 768
 const ease = (t: number) => 1 - Math.pow(1 - t, 3)
 
 // OpenFreeMap: open-source vector tiles from OpenStreetMap data. No API key, no usage limits. Its TileJSON carries the attribution.
@@ -66,6 +66,10 @@ const boundsOf = (ps: { lng: number; lat: number }[]): Bounds => {
 }
 const fitPadding = () => ({ top: HEADER_SPACE + 60, left: 60, right: 60, bottom: TIMELINE_SPACE })
 // Scales with the screen: on a phone, desktop padding is wider than the map and MapLibre refuses to fit.
+// Every garment's place, filtered or not: the first fit and "Show all places" use it. Filters never move the camera, and
+// with filters set before this lazy chunk arrived, the filtered set could be narrow or empty (empty bounds crash MapLibre).
+const ALL_BOUNDS = boundsOf(garments)
+
 const groupPadding = () => {
   const x = Math.min(140, window.innerWidth * 0.18)
   return { top: Math.min(180, window.innerHeight * 0.2), bottom: Math.min(TIMELINE_SPACE + 40, window.innerHeight * 0.35), left: x, right: x }
@@ -91,8 +95,6 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
       .then((s: StyleJson) => setStyle(recolour(s)))
   }, [])
 
-  // Fit to all places once, at load. Filters never move the camera.
-  const [allBounds] = useState(() => boundsOf(places))
   const place = places.find((p) => p.name === selectedPlace)
 
   return (
@@ -102,7 +104,7 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
           ref={mapRef}
           mapLib={maplibregl}
           mapStyle={style}
-          initialViewState={{ bounds: allBounds, fitBoundsOptions: { padding: fitPadding() } }}
+          initialViewState={{ bounds: ALL_BOUNDS, fitBoundsOptions: { padding: fitPadding() } }}
           style={{ position: 'absolute', inset: 0 }}
           minZoom={0.5}
           maxZoom={15}
@@ -139,7 +141,7 @@ export default function MapView({ places, period, selectedPlace, onSelectPlace, 
           )}
         </Map>
       )}
-      <ZoomControls mapRef={mapRef} bounds={allBounds} />
+      <ZoomControls mapRef={mapRef} bounds={ALL_BOUNDS} />
     </div>
   )
 }
@@ -158,15 +160,20 @@ function Dots({ places, selectedPlace, onSelectPlace }: Pick<Props, 'places' | '
     }
   }, [map])
 
-  const groups = useMemo(
-    () => clusterByPixels(places.map((place) => ({ place, count: place.garments.length, ...mercator(place.lng, place.lat, zoomStep) }))).map((g) => g.map((m) => m.place)),
-    [places, zoomStep],
+  // The grouping depends on where places are and how many garments each holds, never on the period. So the slider and
+  // Play (25 changes a second) don't regroup; the groups are only refilled with the current places for their counts.
+  const layout = places.map((p) => `${p.name}:${p.garments.length}`).join('|')
+  const named = useMemo(
+    () => clusterByPixels(places.map((place) => ({ place, count: place.garments.length, ...mercator(place.lng, place.lat, zoomStep) }))).map((g) => g.map((m) => m.place.name)),
+    [layout, zoomStep], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  const byName = new globalThis.Map(places.map((p) => [p.name, p]))
+  const groups = named.map((g) => g.map((name) => byName.get(name)!))
 
   // Where each place was drawn in the previous grouping, so a dot that splits off a group flies out from the old group dot.
   // Kept in state and updated during render (React's "previous props" pattern), so new dots see it on their first render.
-  const [prev, setPrev] = useState({ groups, anchors: new globalThis.Map<string, [number, number]>(), first: true })
-  if (prev.groups !== groups) setPrev({ groups, anchors: anchorsOf(prev.groups), first: false })
+  const [prev, setPrev] = useState({ named, groups, anchors: new globalThis.Map<string, [number, number]>(), first: true })
+  if (prev.named !== named) setPrev({ named, groups, anchors: anchorsOf(prev.groups), first: false })
 
   return groups.map((members, i) => {
     const anchor = members[0]
@@ -281,7 +288,8 @@ function Dot({ members, intro, splitFrom, selected, onActivate }: DotProps) {
 function KeepInView({ garment }: { garment: Garment | null }) {
   const { current: map } = useMap()
   useEffect(() => {
-    if (!garment || !map || !isDesktop()) return
+    // Not while the camera moves: panBy would stop a fly-to in progress, such as the panel's Place link.
+    if (!garment || !map || !isDesktop() || map.isMoving()) return
     const p = map.project([garment.lng, garment.lat])
     const { width, height } = map.getContainer().getBoundingClientRect()
     const right = width - PANEL_SPACE - 170 // room for the place list (300 px, centred on the dot), so the panel doesn't cover it
@@ -301,7 +309,7 @@ function PopupInView({ panelOpen }: { panelOpen: boolean }) {
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       const popup = ref.current?.closest('.maplibregl-popup')
-      if (!map || !popup) return
+      if (!map || !popup || map.isMoving()) return // the fly-to that opened it already frames it
       const r = popup.getBoundingClientRect()
       const c = map.getContainer().getBoundingClientRect()
       const right = c.right - 16 - (panelOpen && isDesktop() ? PANEL_SPACE : 0)

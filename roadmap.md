@@ -290,7 +290,7 @@ Each feature lists what it does, which components it uses, the details, and when
 - **Deploy:**
   - GitHub Pages through a GitHub Actions workflow (`npm ci && npm run build`, then `actions/deploy-pages`).
   - Vite `base: '/FashMap/'` for GitHub Pages.
-  - Docker: a Node.js 24 build stage builds with `--base=/`, then Nginx serves the static files. `docker compose up -d --build` binds to localhost on `${FASHMAP_PORT:-8080}`. The homelab runs from `/home/frisowiegersma/fashmap` as `frisowiegersma`, with `FASHMAP_PORT=8081` in its untracked `.env`. The existing Cloudflare tunnel routes `https://fashmap.frisowiegersma.com` to `http://localhost:8081`; no Tailscale Serve changes are needed. Study URLs use `/` and logs remain in each browser's local storage. On deployment failure, stop only the FashMap service.
+  - Docker: a Node.js 24 build stage builds with `--base=/`, then Nginx serves the static files with `nginx.conf`, which makes browsers revalidate `index.html` (`no-cache`) so a redeploy never leaves a stale page pointing at removed hashed files. The image patches nginx's MIME types so the map's `.mjs` worker is served as JavaScript, and the build fails if that patch stops matching. `docker compose up -d --build` binds to localhost on `${FASHMAP_PORT:-8080}`. The homelab runs from `/home/frisowiegersma/fashmap` as `frisowiegersma`, with `FASHMAP_PORT=8081` in its untracked `.env`. The existing Cloudflare tunnel routes `https://fashmap.frisowiegersma.com` to `http://localhost:8081`; no Tailscale Serve changes are needed. Study URLs use `/` and logs remain in each browser's local storage. On deployment failure, stop only the FashMap service.
 
 ## Open decisions
 

@@ -280,7 +280,7 @@ function build(objects: Raw[], en: Record<string, [type: string, title: string, 
     if (!text) throw new Error(`${o.slug}: add a title, type and summary to scripts/modemuze-en.json`)
     const date = parseDating(t['Datering']?.[0] ?? '')
     if (!date) throw new Error(`${o.slug}: can't read the date "${t['Datering']?.[0]}"`)
-    const place = PLACES[o.slug] ?? (o.geo && t['Locatie']?.[0] ? [placeName(t['Locatie'][0]), o.geo.country, o.geo.lat, o.geo.lng] : null)
+    const place = PLACES[o.slug] ?? (o.geo?.country && t['Locatie']?.[0] ? [placeName(t['Locatie'][0]), o.geo.country, o.geo.lat, o.geo.lng] : null)
     if (!place) throw new Error(`${o.slug}: no place; add it to PLACES or NO_PLACE`)
     const [type, title, description] = text
     records.push({

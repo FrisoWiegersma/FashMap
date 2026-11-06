@@ -24,7 +24,7 @@ export function TimelineView({ garments, selectedId, onSelect, panelOpen, onClea
 
   return (
     <div className="absolute inset-0 flex flex-col bg-background pt-24">
-      <div className={cn('flex flex-wrap items-center gap-x-6 gap-y-3 px-4 transition-[padding] duration-300 ease-out sm:px-8', panelOpen && 'md:pr-[470px]')}>
+      <div className={cn('flex flex-wrap items-center gap-x-6 gap-y-3 px-4 transition-[padding] duration-300 ease-out sm:px-8', panelOpen && 'md:pr-(--panel-space)')}>
         <p className="text-sm text-muted-foreground" aria-live="polite">
           <span className="font-medium text-foreground tabular-nums">{garments.length}</span> {garments.length === 1 ? 'garment' : 'garments'}, oldest first
         </p>
@@ -71,7 +71,7 @@ export function TimelineView({ garments, selectedId, onSelect, panelOpen, onClea
           }}
           className={cn(
             'mt-3 min-h-0 flex-1 overflow-y-auto scroll-smooth motion-reduce:scroll-auto sm:mt-0 sm:flex sm:flex-col sm:justify-center sm:overflow-x-auto sm:overflow-y-hidden sm:scroll-pl-8',
-            panelOpen && 'md:scroll-pr-[470px]',
+            panelOpen && 'md:scroll-pr-(--panel-space)',
           )}
         >
           <div className="flex flex-col gap-6 px-4 pb-10 sm:w-max sm:flex-row sm:gap-5 sm:px-8 sm:pb-6">

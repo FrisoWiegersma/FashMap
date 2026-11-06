@@ -40,6 +40,7 @@
 
 /* FashMap palette: neutral zinc surfaces, one cobalt accent. Serif type carries the style. */
 :root {
+    --panel-space: 470px; /* object panel plus gutter; PANEL_SPACE in src/lib/utils.ts is the same */
     --background: #FAFAFA;
     --foreground: #18181B;
     --card: #FFFFFF;
@@ -125,12 +126,13 @@
 .maplibregl-ctrl-bottom-right,
 .fm-map-controls { transition: right 0.3s ease-out; }
 @media (min-width: 768px) {
-    .fm-panel-open .maplibregl-ctrl-bottom-right { right: 470px; }
-    .fm-panel-open .fm-map-controls { right: 470px; }
+    .fm-panel-open .maplibregl-ctrl-bottom-right { right: var(--panel-space); }
+    .fm-panel-open .fm-map-controls { right: var(--panel-space); }
 }
 
-/* Micrio 360° viewer: keep its points in FashMap's cobalt, hide its own popup, toolbar and buttons.
-   FashMap shows the stories in its own panel, and zoom works with scroll and pinch. */
+/* Micrio 360° viewer: keep its points in FashMap's cobalt, hide its own popup, toolbar, buttons and tour bar
+   (the "← 2/2 ×" strip a point that belongs to a Micrio tour brings up). FashMap shows the stories in its own panel,
+   and zoom works with scroll and pinch. */
 micr-io {
     --micrio-marker-color: var(--primary);
     --micrio-marker-border-color: #fff;
@@ -141,6 +143,7 @@ micr-io {
     background: transparent;
 }
 micr-io .micrio-marker-popup,
+micr-io div.micrio-tour,
 micr-io menu.micrio-toolbar,
 micr-io aside.micrio-controls {
     display: none !important;

@@ -3,12 +3,13 @@ import { Pause, Play } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Slider } from '@/components/ui/slider'
-import { histogram, inPeriod as overlaps, MAX_YEAR, MIN_YEAR, shiftWindow, yearPct, yearRange, type Garment, type Period } from '@/lib/data'
+import { histogram, inPeriod as overlaps, MAX_YEAR, MIN_YEAR, shiftWindow, snapToEnd, yearPct, yearRange, type Garment, type Period } from '@/lib/data'
 import { log } from '@/lib/log'
 import { cn } from '@/lib/utils'
 
 const CENTURIES = [1500, 1600, 1700, 1800, 1900, 2000]
 const YEAR = { useGrouping: false } as const
+const STEP = 5 // slider step in years
 const PLAY_SPEED = 25 // years per second: 1500 to now in about 19 s
 const PLAY_WIDTH = 50 // years, when the whole range is selected
 
@@ -67,7 +68,7 @@ export function Timeline({ period, onChange, garments, total, panelOpen, garment
       aria-label="Period"
       className={cn(
         'absolute bottom-4 left-4 z-[1000] rounded-[22px] bg-white/88 px-5 pt-4 pb-3 shadow-float ring-1 ring-black/5 backdrop-blur-md transition-[width] duration-300 ease-out sm:px-6',
-        panelOpen ? 'w-[min(720px,calc(100%-2rem))] md:w-[min(720px,calc(100%-2rem-470px))]' : 'w-[min(720px,calc(100%-2rem))]',
+        panelOpen ? 'w-[min(720px,calc(100%-2rem))] md:w-[min(720px,calc(100%-2rem-var(--panel-space)))]' : 'w-[min(720px,calc(100%-2rem))]',
       )}
     >
       <div className="flex items-end justify-between gap-6">
@@ -174,12 +175,12 @@ export function Timeline({ period, onChange, garments, total, panelOpen, garment
               className="mt-1.5"
               min={MIN_YEAR}
               max={MAX_YEAR}
-              step={5}
+              step={STEP}
               minStepsBetweenThumbs={1}
               value={period}
               onValueChange={(v) => {
                 stop()
-                onChange([v[0], v[1]])
+                onChange([v[0], snapToEnd(v[1], STEP)])
               }}
               thumbLabels={['From year', 'To year']}
             />

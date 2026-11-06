@@ -94,6 +94,15 @@ function Hint({ children }: { children: string }) {
   )
 }
 
+// model_interact is "the first rotate or zoom per garment" (roadmap F10): once per garment and kind for the whole
+// session, not once per viewer, or the panel, the Photo switch and the full page would each count it again.
+const interacted = new Set<string>()
+function logInteract(garment: string, kind?: '360') {
+  if (interacted.has(`${kind}:${garment}`)) return
+  interacted.add(`${kind}:${garment}`)
+  log('model_interact', kind ? { garment, kind } : { garment })
+}
+
 type MicrioElement = HTMLElement & { $current?: { state: { marker: { set: (m?: string) => void }; $marker?: { id: string } } }; destroy?: () => void }
 
 /**
@@ -105,7 +114,6 @@ function SpinView({ id, garment, story, onStory }: { id: string; garment: Garmen
   const ref = useRef<MicrioElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [touched, setTouched] = useState(false)
-  const logged = useRef(false)
   const onStoryRef = useRef(onStory)
   useEffect(() => {
     onStoryRef.current = onStory
@@ -142,15 +150,18 @@ function SpinView({ id, garment, story, onStory }: { id: string; garment: Garmen
     const onShow = () => setState('ready')
     const onPan = () => {
       setTouched(true)
-      if (!logged.current) log('model_interact', { garment: garment.id, kind: '360' })
-      logged.current = true
+      logInteract(garment.id, '360')
     }
     const onOpen = (e: Event) => {
       const markerId = (e as CustomEvent<{ id: string }>).detail.id
       log('story_open', { garment: garment.id, story: markerId })
       onStoryRef.current?.(markerId)
     }
-    const onClosed = () => onStoryRef.current?.(null)
+    // Micrio closes the old point after opening the new one when the new one comes earlier in its list. Only clear the
+    // story when no point is open any more, or that close would undo the story just opened.
+    const onClosed = () => {
+      if (!el.$current?.state.$marker) onStoryRef.current?.(null)
+    }
     el.addEventListener('show', onShow)
     el.addEventListener('panstart', onPan)
     el.addEventListener('pinchstart', onPan)
@@ -217,7 +228,6 @@ function ModelView({ src, garment }: { src: string; garment: Garment }) {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [progress, setProgress] = useState(0)
   const [touched, setTouched] = useState(false)
-  const logged = useRef(false)
   const reduced = useReducedMotion()
 
   useEffect(() => {
@@ -230,8 +240,7 @@ function ModelView({ src, garment }: { src: string; garment: Garment }) {
     const onCamera = (e: Event) => {
       if ((e as CustomEvent<{ source: string }>).detail.source !== 'user-interaction') return
       setTouched(true)
-      if (!logged.current) log('model_interact', { garment: garment.id })
-      logged.current = true
+      logInteract(garment.id)
     }
     el.addEventListener('load', onLoad)
     el.addEventListener('error', onError)

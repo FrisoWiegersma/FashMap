@@ -8,3 +8,4 @@
 !src/**
 !public/
 !public/**
+!nginx.conf

@@ -24,7 +24,7 @@ export function AdminPage() {
     a.href = URL.createObjectURL(blob)
     a.download = `fashmap-sessions-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
-    URL.revokeObjectURL(a.href)
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000) // revoking at once cancels the download in Safari
   }
 
   return (

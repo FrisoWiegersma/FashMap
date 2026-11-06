@@ -15,7 +15,7 @@ import { MorphingButton } from '@/components/watermelon/morphing-button'
 import garmentsData from '@/data/garments.json'
 import { applyFilters, groupByPlace, MAX_YEAR, MIN_YEAR, NO_FILTERS, type Filters as FilterState, type Garment, type Period } from '@/lib/data'
 import { isAdmin, lockedView, log } from '@/lib/log'
-import { PANEL_SPACE } from '@/lib/utils'
+import { isDesktop, PANEL_SPACE } from '@/lib/utils'
 
 // MapLibre is ~1 MB, so the map loads as its own chunk while the header and timeline paint.
 const MapView = lazy(() => import('@/components/MapView'))
@@ -25,7 +25,6 @@ type View = 'map' | 'grid' | 'timeline'
 
 // 3D shows in both views, except in the eval grid condition (?c=grid): that one stays a photo + text baseline.
 const show3d = lockedView !== 'grid'
-const isDesktop = () => window.innerWidth >= 768
 
 export default function App() {
   return <MotionConfig reducedMotion="user">{isAdmin ? <AdminPage /> : <Explorer />}</MotionConfig>
@@ -37,8 +36,10 @@ function Explorer() {
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS)
   const [placeName, setPlaceName] = useState<string | null>(null)
   const [garmentId, setGarmentId] = useState<string | null>(null)
-  // Full-screen product page of the open garment, optionally opened on one of its stories.
-  const [full, setFull] = useState<{ story: string | null } | null>(null)
+  // Full-screen product page of the open garment, optionally opened on one of its stories. `alone`: a phone opened it
+  // instead of the panel, so closing it closes the garment too. Decided once, at open, so rotating the phone in
+  // between doesn't pop the panel up.
+  const [full, setFull] = useState<{ story: string | null; alone: boolean } | null>(null)
   const mapRef = useRef<MapRef>(null)
 
   // Everything below is derived from the state above, so every view updates in the same render.
@@ -68,7 +69,7 @@ function Explorer() {
     if (id !== garmentId) log('garment_open', { garment: id, from: view === 'map' ? 'list' : view })
     setGarmentId(id)
     // On a phone the panel covers the map and showed what the full page shows, so skip it and open the page.
-    if (!isDesktop()) openFull(null, id)
+    if (!isDesktop()) openFull(null, id, true)
   }
   const closeGarment = () => {
     if (garmentId) log('garment_close', { garment: garmentId })
@@ -76,9 +77,9 @@ function Explorer() {
   }
   // The full page is a history entry, so the back button or a phone's back swipe closes it instead of leaving the
   // site. Its own close (X, Esc) goes back through history as well, so the entry never lingers; `popstate` closes it.
-  const openFull = (story: string | null = null, id = garmentId) => {
+  const openFull = (story: string | null = null, id = garmentId, alone = false) => {
     log('full_open', { garment: id, story })
-    setFull({ story })
+    setFull({ story, alone })
     history.pushState({ fashmapFull: true }, '')
   }
   const closeFull = useCallback(() => history.back(), [])
@@ -87,8 +88,7 @@ function Explorer() {
       if (!full) return
       log('full_close')
       setFull(null)
-      // A phone opened the page instead of the panel, so closing it closes the garment as well.
-      if (!isDesktop() && garmentId) {
+      if (full.alone && garmentId) {
         log('garment_close', { garment: garmentId })
         setGarmentId(null)
       }
@@ -221,7 +221,7 @@ function Explorer() {
 
         <AnimatePresence>
           {/* Not behind a phone's full page: it would load a second 360° view nobody sees. */}
-          {garment && !(full && !isDesktop()) && (
+          {garment && !full?.alone && (
             <ObjectPanel key="panel" garment={garment} show3d={show3d} onClose={closeGarment} onShowPlace={onShowPlace} onOpenFull={openFull} />
           )}
         </AnimatePresence>

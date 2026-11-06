@@ -1,5 +1,5 @@
 // Run with `npm run check`. Throws on the first failing assertion.
-import { applyFilters, byCentury, clusterByPixels, groupByPlace, histogram, inPeriod, mercator, options, shiftWindow, type Garment } from './data.ts'
+import { applyFilters, byCentury, clusterByPixels, groupByPlace, histogram, inPeriod, countryName, mercator, options, shiftWindow, snapToEnd, type Garment } from './data.ts'
 
 function check(ok: boolean, msg: string) {
   if (!ok) throw new Error(`check failed: ${msg}`)
@@ -49,6 +49,10 @@ check(cs[0].garments[0].start === 1800, 'sorted by start')
 // Play through time: the window keeps its width, moves in whole years and stops exactly at the end.
 check(shiftWindow([1500, 1550], 12.7, 2026).join() === '1512,1562', 'play moves whole years')
 check(shiftWindow([1970, 2020], 40, 2026).join() === '1976,2026', 'play stops at the end')
+
+// The slider's last 5-year step (2025 when it's 2026) means now; earlier steps stay as they are.
+check(snapToEnd(2025, 5, 2026) === 2026 && snapToEnd(2020, 5, 2026) === 2020 && snapToEnd(2030, 5, 2030) === 2030, 'slider reaches now')
+check(countryName('NL') === 'Netherlands' && countryName('') === '', 'country names, no throw on an empty code')
 
 // Mercator: the null island sits in the middle of the world; north is up (smaller y).
 const mid = mercator(0, 0, 0)
