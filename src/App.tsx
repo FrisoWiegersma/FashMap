@@ -8,6 +8,7 @@ import { Filters } from '@/components/Filters'
 import { GridView } from '@/components/GridView'
 import { ObjectPanel } from '@/components/ObjectPanel'
 import { Timeline } from '@/components/Timeline'
+import { TimelineView } from '@/components/TimelineView'
 import Button21 from '@/components/watermelon/button-21'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
 import { MorphingButton } from '@/components/watermelon/morphing-button'
@@ -20,7 +21,7 @@ import { PANEL_SPACE } from '@/lib/utils'
 const MapView = lazy(() => import('@/components/MapView'))
 
 const garments = garmentsData as Garment[]
-type View = 'map' | 'grid'
+type View = 'map' | 'grid' | 'timeline'
 
 // 3D shows in both views, except in the eval grid condition (?c=grid): that one stays a photo + text baseline.
 const show3d = lockedView !== 'grid'
@@ -64,7 +65,7 @@ function Explorer() {
     setPlaceName(name)
   }
   const openGarment = (id: string) => {
-    if (id !== garmentId) log('garment_open', { garment: id, from: view === 'map' ? 'list' : 'grid' })
+    if (id !== garmentId) log('garment_open', { garment: id, from: view === 'map' ? 'list' : view })
     setGarmentId(id)
   }
   const closeGarment = () => {
@@ -103,6 +104,15 @@ function Explorer() {
     map?.flyTo({ center: [g.lng, g.lat], zoom: Math.max(map.getZoom(), 10), offset: [isDesktop() ? -PANEL_SPACE / 2 : 0, 60], duration: 1400, essential: true })
   }
 
+  // The grid stays text-only about place; the map and the timeline link a garment's place to the map.
+  const onShowPlace =
+    view === 'grid'
+      ? undefined
+      : (g: Garment) => {
+          if (view === 'timeline') changeView('map')
+          showPlace(g)
+        }
+
   return (
     <div className="relative h-svh overflow-hidden bg-background">
       <div className="contents" inert={!!full}>
@@ -122,6 +132,7 @@ function Explorer() {
               tabs={[
                 { id: 'map', label: 'Map' },
                 { id: 'grid', label: 'Grid' },
+                { id: 'timeline', label: 'Timeline' },
               ]}
               value={view}
               onChange={changeView}
@@ -136,7 +147,7 @@ function Explorer() {
 
       <main className={garment ? 'fm-panel-open' : undefined}>
         {/* The map stays mounted under the grid, so switching back keeps zoom and position. */}
-        <div className="absolute inset-0" inert={view === 'grid'}>
+        <div className="absolute inset-0" inert={view !== 'map'}>
           <Suspense fallback={<div className="absolute inset-0 bg-[#F4F4F5]" />}>
             <MapView
               places={places}
@@ -182,13 +193,21 @@ function Explorer() {
         </AnimatePresence>
 
         <AnimatePresence>
+          {view === 'timeline' && (
+            <motion.div key="timeline" className="absolute inset-0 z-[1100]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <TimelineView garments={filtered} selectedId={garmentId ?? undefined} onSelect={openGarment} panelOpen={!!garment} onClearFilters={() => changeFilters(NO_FILTERS)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
           {garment && (
             <ObjectPanel
               key="panel"
               garment={garment}
               show3d={show3d}
               onClose={closeGarment}
-              onShowPlace={view === 'map' ? showPlace : undefined}
+              onShowPlace={onShowPlace}
               onOpenFull={openFull}
             />
           )}

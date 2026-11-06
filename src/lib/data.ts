@@ -65,6 +65,17 @@ export function histogram(garments: Garment[], size = 25, min = MIN_YEAR, max = 
   return bins
 }
 
+/** Garments sorted by start year, grouped by the century they start in (1899 is in the 1800s). */
+export function byCentury(garments: Garment[]) {
+  const groups: { century: number; garments: Garment[] }[] = []
+  for (const g of [...garments].sort((a, b) => a.start - b.start || a.end - b.end)) {
+    const century = Math.floor(g.start / 100) * 100
+    if (groups.at(-1)?.century !== century) groups.push({ century, garments: [] })
+    groups.at(-1)!.garments.push(g)
+  }
+  return groups
+}
+
 export function groupByPlace(garments: Garment[], period: Period): Place[] {
   const byName = new Map<string, Place>()
   for (const g of garments) {

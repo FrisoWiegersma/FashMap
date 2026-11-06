@@ -1,5 +1,5 @@
 // Run with `npm run check`. Throws on the first failing assertion.
-import { applyFilters, clusterByPixels, groupByPlace, histogram, inPeriod, mercator, options, type Garment } from './data.ts'
+import { applyFilters, byCentury, clusterByPixels, groupByPlace, histogram, inPeriod, mercator, options, type Garment } from './data.ts'
 
 function check(ok: boolean, msg: string) {
   if (!ok) throw new Error(`check failed: ${msg}`)
@@ -40,6 +40,11 @@ check(JSON.stringify(options(pool, 'type')) === '[{"value":"bodice","count":1},{
 // Histogram: a range counts in every bin it overlaps.
 const bins = histogram([g('A', 1890, 1910)], 25, 1850, 1949)
 check(bins.length === 4 && bins.map((b) => b.count).join() === '0,1,1,0', 'histogram overlap')
+
+// Centuries: sorted by start, grouped by the century a garment starts in.
+const cs = byCentury([g('A', 1950, 1960), g('B', 1899, 1910), g('C', 1800, 1850)])
+check(cs.map((c) => `${c.century}:${c.garments.length}`).join() === '1800:2,1900:1', 'century groups')
+check(cs[0].garments[0].start === 1800, 'sorted by start')
 
 // Mercator: the null island sits in the middle of the world; north is up (smaller y).
 const mid = mercator(0, 0, 0)

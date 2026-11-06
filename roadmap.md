@@ -225,6 +225,7 @@ Each feature lists what it does, which components it uses, the details, and when
     - `period_change`, debounced to 500 ms
     - `filter_change`
     - `model_interact`, the first rotate or zoom per garment
+    - Added with F13 (new values, nothing renamed): `view_change` with `to: 'timeline'`, and `garment_open` with `from: 'timeline'`. They only occur in free sessions (`?p=` without `c`).
   - The page `?admin=1` lists the stored logs, offers a JSON download, and can clear them.
   - There is no backend, which fits GitHub Pages. Tasks, answers and the SUS questionnaire go in a Google Form. Time per task comes from the timestamps.
   - Don't rename events once a study has started.
@@ -250,9 +251,23 @@ Each feature lists what it does, which components it uses, the details, and when
   - A garment is counted in every bin it overlaps.
 - **Done when:** the bars line up with the slider's years, and changing a filter updates them.
 
+### F13. Timeline view (outside eval mode)
+
+- **What:** a third view next to Map and Grid: every garment that passes the filters, oldest first, on one horizontal rail grouped by century. It answers "when" the way the map answers "where". Suggested by a test user (Friso's mother).
+- **Components:** none from a registry. Neither Watermelon nor Kokonut has a timeline. Kokonut Momentum Rail (`carousel-cards`) was ruled out because its cover-flow depth and parallax bend the axis and add motion nobody asked for. It's a native `overflow-x` rail with CSS `sticky` century labels, and the third tab goes on the existing Watermelon `continuous-tabs`. `byCentury` in `src/lib/data.ts` does the grouping.
+- **Details:**
+  - Ordered, not to scale: most garments date from after 1850, so a true axis would be mostly empty space with a pile-up at the end.
+  - Each card shows the year range (Newsreader) on a thin axis line with a dot, then the photo, title and place. The selected card has a cobalt ring, year and dot.
+  - Century chips with counts jump to a century. The current century's label sticks to the left edge.
+  - A vertical mouse wheel scrolls the rail sideways. Jumps are smooth unless reduced motion is on.
+  - It follows the type and museum filters, not the period slider, because the rail is itself the time axis.
+  - The open garment's card scrolls clear of the panel. "Place" in the panel switches to the map and flies there.
+  - Hidden in eval mode: `?c=map|grid` hides the toggle, so the study conditions don't change.
+- **Done when:** the rail scrolls by wheel, trackpad and touch, a chip jumps to its century, a filter removes cards, and a card opens the panel without being hidden by it.
+
 ## Cross-cutting requirements
 
-- **Brand:** the user's supplied dress-in-a-map-pin artwork, recoloured to cobalt without redrawing, paired with the Newsreader wordmark. The full name shows from 640 px; on smaller screens Watermelon's Morphing Button reveals it on tap and closes on a second tap, an outside tap or Escape. Header controls wrap when needed. A Watermelon Button 21 links to GitHub. The symbol supplies the favicon and touch icons; the original reference and transparent PNG master live in `docs/brand/`. These are raster assets, not vectors.
+- **Brand:** the user's supplied dress-in-a-map-pin artwork, recoloured to cobalt without redrawing, paired with the Newsreader wordmark. The full name shows from 640 px; on smaller screens Watermelon's Morphing Button reveals it on tap and closes on a second tap, an outside tap or Escape. Header controls wrap when needed. A Watermelon Button 21 links to GitHub; it's hidden below 640 px so the header (with three view tabs) stays on one row on a phone. The symbol supplies the favicon and touch icons; the original reference and transparent PNG master live in `docs/brand/`. These are raster assets, not vectors.
 - **Overview first, details on demand:** the map shows only dots until the user clicks.
 - **Linked views:** one state, so a change shows up everywhere in the same render.
 - **No instructions needed:** visible labels, obvious controls, and an empty state ("No garments in this period").
