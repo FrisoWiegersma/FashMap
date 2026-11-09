@@ -9,6 +9,8 @@ Team 7 (HCI & IV): Narek Sergeyan, Friso Wiegersma.
 
 F1–F13 are built (F9 in its light version). After the HCI/IV review, the map condition gained a map key and data-source credit, the open garment's band on the timeline, a date-precision bar and Play (in F2, F3, F5). Next up: Eval 1 (23–29 Nov).
 
+Branch `trim-demo` is the prototype shown in the November presentation: 5 garments (Hindeloopen, Paramaribo, Ottoman Empire, Atlas Mountains, Kohistan), the map, place list, object panel and full page. No filters, grid, timeline view or timeline card, and the dots don't animate. First user feedback asked for a timeline, more garments, filters and more animation.
+
 ## Milestones
 
 | Milestone | Week | Deadline | Scope |
