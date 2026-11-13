@@ -431,7 +431,7 @@ function PlaceList({ place, period, selectedId, onSelect, onClose }: PlaceListPr
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           <span aria-hidden>{flag(place.country)} </span>
           {countryName(place.country)}, {n} {n === 1 ? 'garment' : 'garments'}
-          {n > 1 && `, ${first === last ? first : `${first}–${last}`}`}
+          {n > 1 && <>, <span className="whitespace-nowrap">{first === last ? first : `${first}–${last}`}</span></>}
           {place.inPeriod < n && `, ${place.inPeriod} in this period`}
         </p>
         <button
