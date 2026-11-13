@@ -2,7 +2,8 @@ import { ExternalLink, Maximize2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { Media } from '@/components/Media'
-import { garmentFields, type Garment } from '@/lib/data'
+import { countryName, flagColours, garmentFields, tint, type Garment } from '@/lib/data'
+import { useTone } from '@/lib/micrio'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 
 export function ObjectPanel({ garment, show3d, onClose, onShowPlace, onOpenFull }: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const tone = useTone(garment.image)
 
   // Move focus into the panel on open, and give it back to whatever opened it on close.
   useEffect(() => {
@@ -52,11 +54,14 @@ export function ObjectPanel({ garment, show3d, onClose, onShowPlace, onOpenFull 
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+        style={tone ? { backgroundColor: tint(tone, 0.982, 0.012) } : undefined}
         className="flex-1 overflow-y-auto px-7 pt-6 pb-7"
       >
+        <CountryLine garment={garment} className="mb-3" />
         <h2 id="garment-title" ref={headingRef} tabIndex={-1} className="font-heading text-[28px] leading-[1.12] tracking-[-0.01em] text-foreground outline-none">
           {garment.title}
         </h2>
+        <p className="mt-1.5 font-heading text-[17px] text-muted-foreground italic">{garment.dateLabel}</p>
 
         <motion.button
           type="button"
@@ -103,6 +108,26 @@ export function Details({ garment, onShowPlace, className }: { garment: Garment;
           </div>
         ))}
     </dl>
+  )
+}
+
+/** A short rule in the flag's colours, then the country and place. Colour is never alone: the name sits right below. */
+export function CountryLine({ garment, className }: { garment: Garment; className?: string }) {
+  const c = flagColours(garment.country)
+  const country = countryName(garment.country)
+  return (
+    <div className={className}>
+      {c && (
+        <span aria-hidden className="mb-2.5 flex h-1 w-12 overflow-hidden rounded-full ring-1 ring-black/10">
+          {c.map((colour, i) => (
+            <span key={i} className="flex-1" style={{ background: colour }} />
+          ))}
+        </span>
+      )}
+      <p className="text-[13px] text-muted-foreground">
+        {garment.place === country ? country : `${country} · ${garment.place}`}
+      </p>
+    </div>
   )
 }
 

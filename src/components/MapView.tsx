@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Map, { AttributionControl, Marker, Popup, useMap, type MapRef } from 'react-map-gl/maplibre'
 import { DateSpan } from '@/components/DateSpan'
 import { GarmentImage } from '@/components/GarmentImage'
-import { clusterByPixels, countryName, dotRadius, inPeriod, mercator, type Garment, type Period, type Place } from '@/lib/data'
+import { clusterByPixels, countryName, dotRadius, flag, inPeriod, mercator, type Garment, type Period, type Place } from '@/lib/data'
 import garments from '@/data/garments.json'
 import { cn, isDesktop, PANEL_SPACE } from '@/lib/utils'
 
@@ -277,7 +277,16 @@ function Dot({ members, intro, splitFrom, selected, onActivate }: DotProps) {
           )}
         >
           <span className="block font-heading text-[15px] leading-tight text-white">{names}</span>
-          <span className="block text-xs text-white/65">{isGroup ? `${countText}. Click to zoom in.` : countText}</span>
+          <span className="block text-xs text-white/65">
+            {isGroup ? (
+              `${countText}. Click to zoom in.`
+            ) : (
+              <>
+                <span aria-hidden>{flag(anchor.country)} </span>
+                {countryName(anchor.country)}, {countText}
+              </>
+            )}
+          </span>
         </span>
       </motion.div>
     </Marker>
@@ -420,6 +429,7 @@ function PlaceList({ place, period, selectedId, onSelect, onClose }: PlaceListPr
       <div className="relative border-b border-border px-5 pt-4 pr-12 pb-3">
         <h2 className="font-heading text-[22px] leading-tight text-foreground">{place.name}</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
+          <span aria-hidden>{flag(place.country)} </span>
           {countryName(place.country)}, {n} {n === 1 ? 'garment' : 'garments'}
           {n > 1 && `, ${first === last ? first : `${first}–${last}`}`}
           {place.inPeriod < n && `, ${place.inPeriod} in this period`}

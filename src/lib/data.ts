@@ -157,6 +157,56 @@ export const countryName = (code: string) => {
   }
 }
 
+// ponytail: a flag emoji from two regional-indicator letters. Windows has no flag glyphs and shows "NL" instead; use flag-icons SVGs if that matters.
+export const flag = (code: string) => (/^[a-z]{2}$/i.test(code) ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '')
+
+// ponytail: hand-picked from each flag's spec for the 22 countries in the data. A new country gets no rule; add a row.
+// The flag's colours in order, for the stripe rule on a garment page.
+const FLAG_COLOURS: Record<string, string[]> = {
+  AF: ['#000000', '#D32011', '#007A36'],
+  BE: ['#000000', '#FDDA24', '#EF3340'],
+  CA: ['#D80621', '#FFFFFF', '#D80621'],
+  CH: ['#DA291C', '#FFFFFF'],
+  DE: ['#000000', '#DD0000', '#FFCE00'],
+  FR: ['#0055A4', '#FFFFFF', '#EF4135'],
+  GB: ['#012169', '#FFFFFF', '#C8102E'],
+  ID: ['#CE1126', '#FFFFFF'],
+  IN: ['#FF9933', '#FFFFFF', '#138808'],
+  IT: ['#009246', '#FFFFFF', '#CE2B37'],
+  JP: ['#FFFFFF', '#BC002D', '#FFFFFF'],
+  KR: ['#CD2E3A', '#FFFFFF', '#0047A0'],
+  MA: ['#C1272D', '#006233', '#C1272D'],
+  NL: ['#AE1C28', '#FFFFFF', '#21468B'],
+  NO: ['#BA0C2F', '#FFFFFF', '#00205B'],
+  PK: ['#FFFFFF', '#01411C', '#01411C'],
+  SE: ['#006AA7', '#FECC00', '#006AA7'],
+  SR: ['#377E3F', '#FFFFFF', '#B40A2D', '#FFFFFF', '#377E3F'],
+  SY: ['#007A3D', '#FFFFFF', '#000000'],
+  TR: ['#E30A17', '#FFFFFF', '#E30A17'],
+  US: ['#B22234', '#FFFFFF', '#3C3B6E'],
+  ZA: ['#E03C31', '#007749', '#001489'],
+}
+export const flagColours = (code: string) => FLAG_COLOURS[code.toUpperCase()] ?? null
+
+/** A pale wash of a colour at a fixed lightness and at most `chroma`, so every garment's tint is equally quiet and text keeps its contrast. */
+export const tint = (rgb: string, lightness: number, chroma: number) => `oklch(from ${rgb} ${lightness} min(c, ${chroma}) h)`
+
+/**
+ * The average colour of RGBA pixel data as CSS `rgb()`, weighted by how colourful each pixel is (max − min channel),
+ * so a grey studio backdrop or mannequin barely counts and the garment's own colours set the hue.
+ */
+export function averageRgb(data: ArrayLike<number>) {
+  const sum = [0, 0, 0]
+  let total = 0
+  for (let i = 0; i < data.length; i += 4) {
+    const px = [data[i], data[i + 1], data[i + 2]]
+    const weight = Math.max(...px) - Math.min(...px) + 1 // + 1: an all-grey photo still averages, evenly
+    for (let k = 0; k < 3; k++) sum[k] += px[k] * weight
+    total += weight
+  }
+  return `rgb(${sum.map((s) => Math.round(s / Math.max(1, total))).join(' ')})`
+}
+
 /** Resolve a data path (relative to public/) or pass an absolute URL through. */
 export const assetUrl = (path: string) => (/^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path}`)
 

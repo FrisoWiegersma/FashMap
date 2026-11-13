@@ -4,6 +4,7 @@
 // (for example one Modemuze adds later) is shown in Dutch.
 
 import { useEffect, useState } from 'react'
+import { averageRgb } from '@/lib/data'
 
 export type StoryImage = { src: string; title: string; width: number; height: number }
 export type Story = { id: string; title: string; body: string; images: StoryImage[]; author?: string; lang: 'en' | 'nl' }
@@ -67,4 +68,32 @@ export function useStories(micrioId: string | null) {
     }
   }, [micrioId])
   return stories.id === micrioId ? stories.list : []
+}
+
+/**
+ * The average colour of the middle of a garment's photo, where the garment stands rather than the studio backdrop.
+ * Micrio's IIIF server crops it and shrinks it to 24 px (CORS is open), and a canvas averages that. Null until it loads.
+ */
+export function useTone(image: string | null) {
+  const [tone, setTone] = useState<{ image: string; rgb: string } | null>(null)
+  useEffect(() => {
+    const base = image?.match(/^https:\/\/iiif\.micr\.io\/[^/]+/)?.[0]
+    if (!base) return
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.drawImage(img, 0, 0)
+      setTone({ image: image!, rgb: averageRgb(ctx.getImageData(0, 0, canvas.width, canvas.height).data) })
+    }
+    img.src = `${base}/pct:30,20,40,60/24,/0/default.jpg`
+    return () => {
+      img.onload = null
+    }
+  }, [image])
+  return tone?.image === image ? tone.rgb : null
 }

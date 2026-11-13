@@ -3,12 +3,12 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { GarmentImage } from '@/components/GarmentImage'
 import { Live } from '@/components/Media'
-import { Details, SourceLink } from '@/components/ObjectPanel'
+import { CountryLine, Details, SourceLink } from '@/components/ObjectPanel'
 import { RichText } from '@/components/RichText'
 import { ContinuousTabs } from '@/components/watermelon/continuous-tabs'
-import { assetUrl, has3d, type Garment } from '@/lib/data'
+import { assetUrl, has3d, tint, type Garment } from '@/lib/data'
 import { log } from '@/lib/log'
-import { useStories, type Story } from '@/lib/micrio'
+import { useStories, useTone, type Story } from '@/lib/micrio'
 import { cn } from '@/lib/utils'
 
 const EASE = [0.2, 0.8, 0.2, 1] as const
@@ -24,6 +24,8 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
   const headingRef = useRef<HTMLHeadingElement>(null)
   const live = show3d && has3d(garment)
   const stories = useStories(live ? garment.micrio : null)
+  // The page's wall takes a pale wash of the garment's own colour, like a museum room painted for one object.
+  const tone = useTone(garment.image)
   const [story, setStory] = useState<string | null>(initialStory)
   const [tab, setTab] = useState<'object' | 'stories'>(initialStory ? 'stories' : 'object')
   // Without stories (none, or they failed to load) the switch is hidden, so show the details rather than an empty list.
@@ -81,7 +83,8 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.3, ease: EASE }}
-      className="fixed inset-0 z-[1400] flex flex-col overflow-hidden bg-background"
+      style={tone ? { backgroundColor: tint(tone, 0.94, 0.03) } : undefined}
+      className="fixed inset-0 z-[1400] flex flex-col overflow-hidden bg-background transition-[background-color] duration-700 motion-reduce:transition-none"
     >
       {/* Phone: the media sit on top and never scroll away, and only the text below scrolls, so a point on the spin
           and its story are on screen together. From 1024 px the panes and the text are three columns. */}
@@ -156,12 +159,11 @@ export function CompareView({ garment, show3d, initialStory = null, onClose, onS
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[22px] bg-card shadow-float ring-1 ring-black/5 lg:overflow-visible"
         >
           <div className="px-5 pt-5 lg:px-7 lg:pt-6">
+            <CountryLine garment={garment} className="mb-3" />
             <h2 id="full-title" ref={headingRef} tabIndex={-1} className="font-heading text-[26px] leading-[1.1] tracking-[-0.01em] text-foreground outline-none lg:pr-12 lg:text-[30px]">
               {garment.title}
             </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {garment.place}, {garment.dateLabel}
-            </p>
+            <p className="mt-1.5 font-heading text-[17px] text-muted-foreground italic">{garment.dateLabel}</p>
             {stories.length > 0 && (
               <ContinuousTabs
                 label="Show"

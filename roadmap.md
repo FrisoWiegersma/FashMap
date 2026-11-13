@@ -117,7 +117,7 @@ Each feature lists what it does, which components it uses, the details, and when
 - **Details:**
   - The radius uses `√count`, so area grows with count, clamped to 6–30 px.
   - Places with `inPeriodCount = 0` get opacity 0.15 and stay clickable. The radius follows `inPeriodCount`.
-  - Dots are the only colour on the map: cobalt `#2D5BFF` with a white stroke. Places outside the period become a hollow grey ring, so shape carries the change as well as colour. The selected place gets a black ring.
+  - Dots are the only colour on the map: cobalt `#2D5BFF` with a white stroke. The dot tooltip and the place list name the country with its flag emoji. Places outside the period become a hollow grey ring, so shape carries the change as well as colour. The selected place gets a black ring.
   - Dots with more than one garment show the count inside.
   - The selected place gets a thicker dark stroke.
   - The initial view fits all places. On a small screen, zoom to Europe and Africa.
@@ -159,6 +159,8 @@ Each feature lists what it does, which components it uses, the details, and when
   - On phones (under 768 px) a tap opens the full page directly and skips the panel. There the panel covered the map and showed the same things. Closing the page closes the garment, and its place link goes back to the map.
   - The full page is a browser history entry (`pushState`), so Back or a phone's back swipe closes it instead of leaving the site. Its X and Esc also go back through history, so no stale entry is left.
   - Photos and the 360° view sit on a blurred copy of the garment photo (Narek's `card` technique), so the pane takes the photo's own backdrop colour instead of framing it like a picture in a box. On phones the full-page photo uses the pane's full height, with the controls on top as on the 360° view. An expanded story also shows its images inline below its text on narrow screens; tapping one opens that image in the existing photo pane, where it can be enlarged and zoomed.
+  - **Country colours (12 Nov):** the panel and the full page take the garment's country flag colours: a short stripe rule above the title, then the country and place in text (no emoji; the rule is the flag) (`CountryLine` in `ObjectPanel.tsx`). Colours live in `FLAG_COLOURS` in `data.ts`; `data.check.ts` checks every country in the data has a row. A new country without a row shows no rule. Points, dots and links stay cobalt: recolouring them per flag was tried and rejected. It shows in both study conditions, since the grid baseline opens the same panel, so the only differences between conditions stay map, timeline and 3D. A Modemuze-style theme (pink, Raleway) was tried the same day and rejected.
+  - **Garment tone (12 Nov):** each garment page takes a pale wash of the garment's own colour, like a museum room painted for one object: the full page's background (oklch lightness 0.94, chroma ≤ 0.03) and the side panel's text area (0.982, ≤ 0.012, so muted text keeps AA). `useTone` in `micrio.ts` asks Micrio's IIIF server for the photo's centre at 24 px and averages it, weighted by colourfulness (`averageRgb` in `data.ts`) so the grey backdrop and mannequin barely count. It carries no where or when, so it shows in both study conditions. Dates under the title are set in Newsreader italic, like a museum label.
   - Every 360° view calls Micrio's `destroy()` when it closes. Otherwise its WebGL context stays alive until garbage collection, and after about eight garments Chrome drops the oldest context, which is the map's (it shows a sad face).
 - **Done when:** a garment with a model can be rotated and zoomed, one without a model shows its photo, and the map stays usable while the panel is open.
 
@@ -282,7 +284,7 @@ Each feature lists what it does, which components it uses, the details, and when
 - **Overview first, details on demand:** the map shows only dots until the user clicks.
 - **Linked views:** one state, so a change shows up everywhere in the same render.
 - **No instructions needed:** visible labels, obvious controls, an empty state ("No garments in this period"), a map key for the dots on desktop and a source credit in the map attribution (F5).
-- **Colour-blind safe:** one accent hue (cobalt) on neutral greys, and information is never carried by colour alone: size, count labels and the hollow-ring shape carry it too. Check with Chrome DevTools > Rendering > Emulate vision deficiencies.
+- **Colour-blind safe:** one accent hue (cobalt) on neutral greys (a garment page adds only a small flag stripe rule, always above the country name), and information is never carried by colour alone: size, count labels and the hollow-ring shape carry it too. Check with Chrome DevTools > Rendering > Emulate vision deficiencies.
 - **Accessibility:** keyboard access to every control, visible focus, WCAG AA contrast, `prefers-reduced-motion` respected (the `motion` components support it).
 - **Performance:**
   - Lazy 3D (F4), a lazy vector base map (MapLibre), and lazy thumbnails. The app bundle is about 190 kB gzipped.
