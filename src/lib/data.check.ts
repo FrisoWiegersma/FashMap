@@ -1,5 +1,5 @@
 // Run with `npm run check`. Throws on the first failing assertion.
-import { applyFilters, averageRgb, byCentury, byDate, clusterByPixels, groupByPlace, histogram, inPeriod, countryName, flag, flagColours, mercator, options, shiftWindow, snapToEnd, type Garment } from './data.ts'
+import { applyFilters, byCentury, byDate, clusterByPixels, groupByPlace, histogram, inPeriod, countryName, flag, flagColours, mercator, options, shiftWindow, snapToEnd, type Garment } from './data.ts'
 import garmentsData from '../data/garments.json' with { type: 'json' }
 
 function check(ok: boolean, msg: string) {
@@ -69,9 +69,5 @@ check(flag('NL') === '🇳🇱' && flag('gb') === '🇬🇧' && flag('') === '',
 
 // Every country in the data has flag colours for its garment page.
 for (const code of new Set((garmentsData as Garment[]).map((x) => x.country))) check(!!flagColours(code), `flag colours for ${code}`)
-
-check(averageRgb([255, 0, 0, 255, 0, 0, 255, 255]) === 'rgb(128 0 128)', 'average of red and blue pixels')
-check(averageRgb([]) === 'rgb(0 0 0)', 'average of no pixels')
-check(averageRgb([128, 128, 128, 255, 255, 0, 0, 255]) === 'rgb(255 0 0)', 'a grey pixel barely counts next to a red one')
 
 console.log('data checks passed')

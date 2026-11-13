@@ -5,7 +5,11 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="FashMap: a world map with cobalt dots for the places garments come from, and a timeline with a bar chart of garments per 25 years" width="900">
+  <a href="https://fashmap.frisowiegersma.com/"><b>Open FashMap</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/place.webp" alt="FashMap zoomed in on the Netherlands: the garments of Dordrecht in a list over the map, the wedding dress of Cornelia Agatha Vriesendorp open in a side panel with its 360° view and details, and 1864 marked on the timeline below" width="900">
 </p>
 
 FashMap shows the 128 garments of the [Modemuze](https://modemuze.nl) 360° collection, from regional costume to designer pieces, on a map of where they come from and a timeline of when they were made. You narrow the period on a timeline, click a place to see its garments, and open one to turn it around in 360° next to its photo and details.
@@ -19,9 +23,33 @@ It is the course project of Team 7 for Human-Computer Interaction & Information 
 - Filters for garment type and museum. The map, the timeline and the grid all follow them at once.
 - Click a dot for the garments of that place, then a garment for a panel with its 360° spin, photo and details. The map stays visible next to it.
 - A full page per garment: the spin and a zoomable photo side by side, the Modemuze stories behind the points on the spin, and a full-screen mode for each.
+- A timeline view that lines up every garment from oldest to newest, with a jump to each century.
 - A grid view in the style of Modemuze, used as the baseline in the study.
 - An eval mode that locks a participant to one condition and logs what they do, plus a page to export the logs.
 - Works with the keyboard, shows focus, respects reduced motion, and never uses colour as the only cue.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/map.webp" alt="The map zoomed in on Western Europe, with numbered cobalt dots where nearby places merge, and the period timeline below">
+      <br><sub><b>Map.</b> Nearby places merge into one numbered dot and split as you zoom in.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/full-page.webp" alt="The full page of a wedding dress: the 360° view with story points, a photo with thumbnails, and the object details">
+      <br><sub><b>Full page.</b> The 360° spin and the photos side by side, with the stories behind each point.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/timeline.webp" alt="The timeline view in the 1800s: garments in a row under their dates, with century buttons above">
+      <br><sub><b>Timeline.</b> Every garment in date order, with a jump to each century.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/grid.webp" alt="The grid view: garment photos with title, date and place, in the style of Modemuze">
+      <br><sub><b>Grid.</b> Photo and text only, the Modemuze-style baseline of the study.</sub>
+    </td>
+  </tr>
+</table>
 
 ## Quick start
 
